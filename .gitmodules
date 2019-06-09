@@ -1,0 +1,9 @@
+[submodule "ext/c4core"]
+	path = ext/c4core
+	url = https://github.com/biojppm/c4core
+[submodule "ext/c4fs"]
+	path = ext/c4fs
+	url = https://github.com/biojppm/c4fs
+[submodule "ext/rapidyaml"]
+	path = ext/rapidyaml
+	url = https://github.com/biojppm/rapidyaml
