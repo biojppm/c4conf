@@ -33,6 +33,7 @@ void test_same(MultipleContents contents, c4::csubstr expected_in)
 
     c4::yml::Tree tree_result, tree_expected;
     bool got_one = c4::conf::load(mf.m_filenames, &tree_result);
+    EXPECT_TRUE(got_one);
     c4::yml::parse(expected_in, &tree_expected);
 
     auto result = c4::yml::emitrs<std::string>(tree_result);
@@ -51,7 +52,31 @@ TEST(basic, orthogonal)
     );
 }
 
-TEST(basic, overriding)
+TEST(basic, overriding0)
+{
+    test_same(
+        {"a: 0", "a: 1"},
+        "a: 1"
+    );
+}
+
+TEST(basic, overriding1)
+{
+    test_same(
+        {"a: 0", "a: 1", "a: 2"},
+        "a: 2"
+    );
+}
+
+TEST(basic, overriding2)
+{
+    test_same(
+        {"a: 0", "b: 1", "a: 2"},
+        "{a: 2, b: 1}"
+    );
+}
+
+TEST(basic, overriding3)
 {
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},

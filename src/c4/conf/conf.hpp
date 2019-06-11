@@ -112,7 +112,7 @@ inline bool load(csubstr path, yml::Tree *tree, Workspace *ws)
     C4_ASSERT(ws != nullptr);
     if( ! ws->load_file(path, tree)) return false;
     size_t root = tree->root_id();
-    tree->duplicate_contents(ws->m_tree, ws->m_tree->root_id(), root);
+    tree->merge_with(ws->m_tree, ws->m_tree->root_id(), root);
     return true;
 }
 

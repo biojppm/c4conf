@@ -11,14 +11,14 @@ c4_declare_project(c4conf
 set(C4CONF_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 set(C4CONF_EXT_DIR ${CMAKE_CURRENT_LIST_DIR}/ext)
 
-c4conf_require_module(c4core
+c4_require_subproject(c4core
     SUBDIRECTORY ${C4CONF_EXT_DIR}/c4core)
 
-c4conf_require_module(c4fs
+c4_require_subproject(c4fs
     SUBDIRECTORY ${C4CONF_EXT_DIR}/c4fs)
 
 c4_override(RYML_STANDALONE OFF)
-c4conf_require_module(ryml
+c4_require_subproject(ryml
     SUBDIRECTORY ${C4CONF_EXT_DIR}/rapidyaml)
 
 set(C4CONF_SRC
@@ -26,7 +26,7 @@ set(C4CONF_SRC
     ${C4CONF_SRC_DIR}/c4/conf/conf.cpp
     )
 
-c4conf_add_library(c4conf
+c4_add_library(c4conf
     SOURCES ${C4CONF_SRC}
     LIBS c4fs ryml c4core
     INC_DIRS ${C4CONF_SRC_DIR}

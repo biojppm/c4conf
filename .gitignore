@@ -2,6 +2,8 @@
 *.bck
 \#*
 *~
+.ccls-root
+.ccls-cache
 
 # Visual Studio files
 .vs/
@@ -18,7 +20,6 @@ build/
 install/
 .python-version
 compile_commands.json
-.ccls-root
 
 # test files
 /Testing/
