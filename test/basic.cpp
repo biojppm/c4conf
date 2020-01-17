@@ -1,9 +1,9 @@
+#include <c4/std/string.hpp>
 #include <c4/conf/conf.hpp>
 #include <gtest/gtest.h>
 
 #include <initializer_list>
 #include <vector>
-#include <c4/std/string.hpp>
 
 
 using MultipleContents = std::initializer_list<c4::csubstr>;
