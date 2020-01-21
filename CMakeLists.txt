@@ -8,9 +8,6 @@ c4_declare_project(c4conf
     AUTHOR "Joao Paulo Magalhaes <dev@jpmag.me>"
     MAJOR 0 MINOR 0 RELEASE 1)
 
-set(C4CONF_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
-set(C4CONF_EXT_DIR ${CMAKE_CURRENT_LIST_DIR}/ext)
-
 c4_require_subproject(c4core SUBDIRECTORY ${C4CONF_EXT_DIR}/c4core)
 c4_require_subproject(c4fs   SUBDIRECTORY ${C4CONF_EXT_DIR}/c4fs)
 c4_require_subproject(ryml   SUBDIRECTORY ${C4CONF_EXT_DIR}/rapidyaml)
@@ -30,8 +27,5 @@ c4_add_library(c4conf
 c4_install_target(c4conf)
 c4_install_exports()
 
-if(C4CONF_BUILD_TESTS)
-    enable_testing() # this must be done here (and not inside the test dir)
-                     # so that the test targets are available at the top level
-    add_subdirectory(test)
-endif()
+c4_add_dev_targets()
+

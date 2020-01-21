@@ -5,7 +5,7 @@ function(c4conf_test name)
     c4_add_executable(${name}
         SOURCES ${ARGN}
         LIBS c4conf gtest_main gtest
-        FOLDER c4conf-test)
+        FOLDER test)
     c4_add_test(${name})
 endfunction()
 
