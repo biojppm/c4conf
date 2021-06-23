@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.2)
-project(c4conf)
-
 include(./ext/c4core/cmake/c4Project.cmake)
-
-c4_declare_project(c4conf
-    DESC "YAML configuration loading and merging from multiple files"
-    AUTHOR "Joao Paulo Magalhaes <dev@jpmag.me>"
-    MAJOR 0 MINOR 0 RELEASE 1)
+project(c4conf
+    DESCRIPTION "YAML configuration loading and merging from multiple files"
+    LANGUAGES CXX)
+c4_project(VERSION 0.0.1
+    CXX_STANDARD 17
+    AUTHOR "Joao Paulo Magalhaes <dev@jpmag.me>")
 
 c4_require_subproject(c4core SUBDIRECTORY ${C4CONF_EXT_DIR}/c4core)
 c4_require_subproject(c4fs   SUBDIRECTORY ${C4CONF_EXT_DIR}/c4fs)
