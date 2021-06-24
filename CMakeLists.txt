@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.13)
 include(./ext/c4core/cmake/c4Project.cmake)
 project(c4conf
     DESCRIPTION "YAML configuration loading and merging from multiple files"
