@@ -4,6 +4,7 @@
 *~
 .ccls-root
 .ccls-cache
+.cache
 
 # Visual Studio files
 .vs/

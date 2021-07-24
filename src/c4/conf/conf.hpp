@@ -5,12 +5,13 @@
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
+#include <iostream>
+
 namespace c4 {
 namespace conf {
 
-/** Provide a workspace tree to load newer files to merge.
- * When loading multiple files, an object of this class may be
- * provided as a workspace to allow reuse of the tree.. */
+/** Provides a workspace tree to for reuse when loading newer files to
+ * merge. */
 struct Workspace
 {
     yml::Tree   m_tree_ws;
@@ -22,26 +23,7 @@ struct Workspace
     {
     }
 
-    bool load_file(csubstr s, yml::Tree *output)
-    {
-        C4_ASSERT(output);
-        size_t pos = output->arena_pos();
-        // filesystem functions use libc functions which cannot
-        // deal with substrings so create a cstr
-        output->copy_to_arena(s);
-        output->copy_to_arena("\0");
-        const char* file = output->arena().str + pos;
-        if( ! fs::path_exists(file)) return false;
-        // copy the file contents into the tree arena
-        size_t filesz = fs::file_get_contents(file, nullptr, 0);
-        substr file_contents = output->alloc_arena(filesz);
-        file = output->arena().str + pos; // WATCHOUT the arena may have been reallocated
-        fs::file_get_contents(file, file_contents.str, file_contents.len);
-        // now parse the yaml content into the tree
-        m_tree->clear();
-        yml::parse(s, file_contents, m_tree);
-        return true;
-    }
+    bool load_file(csubstr s, yml::Tree *output);
 
     template <class It>
     void prepare(It begin, It end, yml::Tree *output) const
@@ -69,7 +51,21 @@ struct Workspace
         output->reserve_arena(count);
     }
 
-
+    /** the nodes in the final conf tree will be pointing at the arena
+     * of the ws tree. Ensure no arena reallocation occurs while
+     * parsing any of the confs. */
+    template <class ConfIt>
+    void reserve_arena_for_confs(ConfIt begin, ConfIt end)
+    {
+        // count the total size of the confs
+        size_t sz = 0u;
+        for( ; begin != end; ++begin)
+            sz += to_csubstr(*begin).len;
+        // to be absolutely certain, use twice the size
+        sz *= size_t(2);
+        // now reserve the arena in the ws tree
+        m_tree->reserve_arena(sz);
+    }
 };
 
 
@@ -100,50 +96,39 @@ inline bool add_file(csubstr file_path, yml::Tree *tree)
 
 /** load a sequence of files */
 template <class It>
-inline bool add_files(It begin, It end, yml::Tree *tree, Workspace *ws=nullptr)
+inline bool add_files(It begin, It end, yml::Tree *tree, Workspace *workspace=nullptr)
 {
-    if(ws)
-    {
+    auto impl = [&](Workspace *ws){
         ws->prepare(begin, end, tree);
         bool ret = false;
         for(It it = begin; it != end; ++it)
             ret |= add_file(c4::to_csubstr(*it), tree, ws);
         return ret;
+    };
+
+    if(workspace)
+    {
+        return impl(workspace);
     }
     else
     {
         Workspace tmp;
-        tmp.prepare(begin, end, tree);
-        bool ret = false;
-        for(It it = begin; it != end; ++it)
-            ret |= add_file(c4::to_csubstr(*it), tree, &tmp);
-        return ret;
+        return impl(&tmp);
     }
 }
 
-/** load a sequence of files, with the names given in a container with multiple filenames */
+/** load a sequence of files, with the filenames given in a container */
 template <class Container>
-inline bool add_files(Container const& container, yml::Tree *tree, Workspace *ws=nullptr)
+inline bool add_files(Container const& filenames, yml::Tree *tree, Workspace *ws=nullptr)
 {
-    return add_files(container.begin(), container.end(), tree, ws);
+    return add_files(filenames.begin(), filenames.end(), tree, ws);
 }
 
 
 //-----------------------------------------------------------------------------
 
-inline bool add_conf(csubstr key, csubstr val, yml::Tree *tree, Workspace *ws)
-{
-    C4_ASSERT(ws != nullptr);
-    C4_ASSERT(ws->m_tree != nullptr);
-    ws->m_tree->clear();
-    yml::parse(key, val, ws->m_tree);
-    auto lookup_result = tree->lookup_path(key);
-    if(!lookup_result)
-        return false;
-    C4_CHECK(lookup_result == true);
-    tree->merge_with(ws->m_tree, ws->m_tree->root_id(), lookup_result.target);
-    return true;
-}
+void add_conf(csubstr path, csubstr conf_yml, yml::Tree *tree, Workspace *ws);
+void add_conf(csubstr path_eq_conf_yml, yml::Tree *tree, Workspace *ws);
 
 
 } // namespace conf

@@ -9,4 +9,4 @@ function(c4conf_test name)
     c4_add_test(${name})
 endfunction()
 
-c4conf_test(basic basic.cpp)
+c4conf_test(basic test_basic.cpp)
