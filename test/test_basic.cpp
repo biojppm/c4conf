@@ -44,7 +44,6 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
     EXPECT_TRUE(got_one);
 
     c4::yml::parse(expected_yml, &tree_expected);
-std::cout << tree_expected;
 
     c4::conf::Workspace ws;
     ws.reserve_arena_for_confs(confs.begin(), confs.end());
@@ -53,9 +52,6 @@ std::cout << tree_expected;
 
     std::string result = emitstr(tree_result);
     std::string expected = emitstr(tree_expected);
-
-std::cout << "------------" << std::endl;
-std::cout << tree_result;
 
     EXPECT_EQ(expected, result);
 }
@@ -423,5 +419,47 @@ TEST(nested_mixed_lookup, override_seq_with_seq_twice)
         {"map.seq[1].map.seq=~",
          "map.seq[1].map.seq=[a, b]"},
         "{map: {seq: [0, {map: {seq: [a, b]}, and: val}]}}"
+    );
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+TEST(nested_mixed_lookup, create_seqs)
+{
+    test_same(
+        {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
+        {"map.seq[1].map.seq=~",
+         "map.seq[1].map.seq=[10, 20]",
+         "map.seq[1].map.seq=[[30, 40]]",
+         "map.seq[1].map.seq=[[[50, 60], [70, 80]]]",
+        },
+        "{map: {seq: [0, {map: {seq: [10, 20, [30, 40], [[50, 60], [70, 80]]]}, and: val}]}}"
+    );
+}
+
+TEST(nested_mixed_lookup, create_seq_entries)
+{
+    test_same(
+        {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
+        {"map.seq[1].map.seq=~",
+         "map.seq[1].map.seq=[00, 10]",
+         "map.seq[1].map.seq[4]=[40, 50]",
+        },
+        "{map: {seq: [0, {map: {seq: [00, 10, ~, ~, [40, 50]]}, and: val}]}}"
+    );
+}
+
+TEST(nested_mixed_lookup, create_maps)
+{
+    test_same(
+        {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
+        {"map.seq[1].map.seq=~",
+         "map.seq[1].map.seq={foo: bar}",
+         "map.seq[1].map.seq={foo: bar, bar: {baz: bat}}",
+        },
+        "{map: {seq: [0, {map: {seq: {foo: bar, bar: {baz: bat}}}, and: val}]}}"
     );
 }
