@@ -1,5 +1,6 @@
 #include <c4/std/string.hpp>
 #include <c4/conf/conf.hpp>
+#include <c4/fs/fs.hpp>
 #include <gtest/gtest.h>
 
 #include <initializer_list>
@@ -15,15 +16,16 @@ using MultipleFilesSpec = std::initializer_list<c4::csubstr>;
 struct MultipleFiles
 {
     std::vector<c4::fs::ScopedTmpFile> m_files;
-    std::vector<c4::csubstr> m_filenames;
-
     MultipleFiles(MultipleFilesSpec contents)
-        : m_files(contents.begin(), contents.end()),
-          m_filenames()
+        : m_files(contents.begin(), contents.end())
     {
-        m_filenames.reserve(m_files.size());
-        for(auto const& f : m_files)
-            m_filenames.emplace_back(c4::to_csubstr(f.name()));
+        size_t i = 0;
+        for(c4::csubstr cont : contents)
+        {
+            std::string actual = c4::fs::file_get_contents<std::string>(m_files[i].name());
+            EXPECT_EQ(c4::to_csubstr(actual), cont) << "i=" << i;
+            i++;
+        }
     }
 };
 
@@ -37,18 +39,22 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
 {
     MultipleFiles mf(files);
     ASSERT_EQ(mf.m_files.size(), files.size());
-    ASSERT_EQ(mf.m_filenames.size(), files.size());
 
     c4::yml::Tree tree_result, tree_expected;
-    bool got_one = c4::conf::add_files(mf.m_filenames, &tree_result);
-    EXPECT_TRUE(got_one);
 
+    c4::conf::Workspace ws(&tree_result);
+    for(const auto &file : mf.m_files)
+        ws.prepare_add_file(file.name());
+    for(c4::csubstr spec : confs)
+        ws.prepare_add_conf(spec);
+    EXPECT_TRUE(tree_result.arena_capacity() > 0);
+    EXPECT_TRUE(tree_result.arena_size() == 0);
+
+    for(const auto &file : mf.m_files)
+        ws.add_file(file.name());
+    for(c4::csubstr spec : confs)
+        ws.add_conf(spec);
     c4::yml::parse(expected_yml, &tree_expected);
-
-    c4::conf::Workspace ws;
-    ws.reserve_arena_for_confs(confs.begin(), confs.end());
-    for(c4::csubstr conf : confs)
-        c4::conf::add_conf(conf, &tree_result, &ws);
 
     std::string result = emitstr(tree_result);
     std::string expected = emitstr(tree_expected);
