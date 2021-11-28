@@ -77,11 +77,76 @@ TEST(opts, set_node)
               expected_tree);
 }
 
-TEST(opts, load_file)
+struct casefiles
 {
+    casefiles()
+    {
+        fs::mkdir("somedir");
+        fs::file_put_contents("somedir/file0", csubstr(R"(
+key0:
+  key0val0: now replaced as a scalar
+)"));
+        fs::file_put_contents("somedir/file2", csubstr(R"(
+key0:
+  key0val0: now replaced as a scalar, v2
+)"));
+        fs::file_put_contents("somedir/file3", csubstr(R"(
+key1:
+  key1val0: this one too, v2
+)"));
+        fs::file_put_contents("somedir/file1", csubstr(R"(
+key1:
+  key1val0: this one too
+)"));
+    }
+    ~casefiles()
+    {
+        fs::rmfile("somedir/file3");
+        fs::rmfile("somedir/file2");
+        fs::rmfile("somedir/file1");
+        fs::rmfile("somedir/file0");
+        fs::rmdir("somedir");
+    }
+};
 
+TEST(opt, load_file)
+{
+    casefiles setup;
+    yml::Tree expected_tree = yml::parse(reftree);
+    OptArg expected_args[] = {
+        {Opt::load_file, {}, "somedir/file0"},
+        {Opt::load_file, {}, "somedir/file1"},
+    };
+    expected_tree["key0"]["key0val0"].clear_children();
+    expected_tree["key0"]["key0val0"].set_type(yml::KEYVAL);
+    expected_tree["key0"]["key0val0"].set_val("now replaced as a scalar");
+    expected_tree["key1"]["key1val0"].clear_children();
+    expected_tree["key1"]["key1val0"].set_type(yml::KEYVAL);
+    expected_tree["key1"]["key1val0"].set_val("this one too");
+    test_opts({"-a", "-f", "somedir/file0", "-b", "b0", "--file", "somedir/file1", "-c", "c0", "c1"},
+              {"-a",                        "-b", "b0",                            "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
 }
 
+TEST(opt, load_dir)
+{
+    casefiles setup;
+    yml::Tree expected_tree = yml::parse(reftree);
+    OptArg expected_args[] = {
+        {Opt::load_dir, {}, "somedir"},
+    };
+    expected_tree["key0"]["key0val0"].clear_children();
+    expected_tree["key0"]["key0val0"].set_type(yml::KEYVAL);
+    expected_tree["key0"]["key0val0"].set_val("now replaced as a scalar, v2");
+    expected_tree["key1"]["key1val0"].clear_children();
+    expected_tree["key1"]["key1val0"].set_type(yml::KEYVAL);
+    expected_tree["key1"]["key1val0"].set_val("this one too, v2");
+    test_opts({"-a", "-d", "somedir", "-b", "b0", "-c", "c0", "c1"},
+              {"-a",                  "-b", "b0", "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 #include "c4/conf/conf.hpp"
 #include "c4/error.hpp"
+#include "c4/memory_resource.hpp"
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
@@ -52,13 +53,21 @@ csubstr _get_root_key(csubstr path) noexcept
 //-----------------------------------------------------------------------------
 
 Workspace::Workspace(yml::Tree *output, yml::Tree *t)
-    : m_wsbuf()
+    : m_wsbuf(output->allocator())
     , m_ws(t ? t : &m_wsbuf)
     , m_output(output)
     , m_load_started(false)
     , m_arena_when_load_started()
+    , m_dir_scratch()
+    , m_dir_entry_list()
 {
-    C4_CHECK(output);
+}
+
+Workspace::~Workspace()
+{
+    _release(&m_dir_entry_list.names);
+    _release(&m_dir_entry_list.arena);
+    _release(&m_dir_scratch);
 }
 
 void Workspace::_load_started()
@@ -80,14 +89,36 @@ substr Workspace::_alloc_arena(size_t sz) const
 
 void Workspace::prepare_add_dir(csubstr tree_path, const char *dirname)
 {
-    prepare_add_file(tree_path, dirname);
-    C4_NOT_IMPLEMENTED();
+    C4_CHECK(!m_load_started);
+    auto noop = [](fs::VisitedFile const&){ return 0; };
+    // ensure the scratch has enough space for all the existing
+    // filenames in the dir
+    m_dir_scratch.required_size = 256;
+    bool ok;
+    do
+    {
+        _ensure(&m_dir_scratch);
+        ok = c4::fs::walk_entries(dirname, noop, &m_dir_scratch, this);
+    } while(!m_dir_scratch.valid());
+    C4_CHECK(ok);
+    // now prepare for each file in the dir
+    auto file_visitor = [](fs::VisitedFile const& vf){
+        Workspace *this_ = (Workspace *)vf.user_data;
+        this_->prepare_add_file(vf.name);
+        return 0;
+    };
+    ok = c4::fs::walk_entries(dirname, file_visitor, &m_dir_scratch, this);
+    C4_CHECK(ok);
+    // accomodate also the directory name
+    size_t req_filecontents = tree_path.len + 2u + strlen(dirname);
+    size_t arena_cap = m_output->arena_capacity();
+    size_t arena_req = arena_cap + req_filecontents;
+    m_output->reserve_arena(arena_req);
 }
 
 void Workspace::prepare_add_dir(const char *dirname)
 {
-    prepare_add_file(dirname);
-    C4_NOT_IMPLEMENTED();
+    prepare_add_dir("", dirname);
 }
 
 void Workspace::prepare_add_file(csubstr tree_path, const char *filename)
@@ -249,15 +280,34 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
 
 void Workspace::add_dir(csubstr tree_path, const char *dirname)
 {
-    C4_UNUSED(tree_path);
-    C4_UNUSED(dirname);
-    C4_NOT_IMPLEMENTED();
+    m_dir_scratch.required_size = 256;
+    bool ok;
+    do
+    {
+        _ensure(&m_dir_scratch);
+        ok = c4::fs::list_entries(dirname, &m_dir_entry_list, &m_dir_scratch);
+    } while(!m_dir_scratch.valid());
+    C4_CHECK(m_dir_scratch.valid());
+    if(!ok)
+    {
+        _ensure(&m_dir_entry_list.names);
+        _ensure(&m_dir_entry_list.arena);
+        ok = c4::fs::list_entries(dirname, &m_dir_entry_list, &m_dir_scratch);
+    }
+    C4_CHECK(ok);
+    C4_CHECK(m_dir_entry_list.valid());
+    C4_CHECK(m_dir_scratch.valid());
+    m_dir_entry_list.sort();
+    for(const char *filename : m_dir_entry_list)
+    {
+        add_file(tree_path, filename);
+    }
 }
 
 void Workspace::add_dir(const char *dirname)
 {
-    C4_UNUSED(dirname);
-    C4_NOT_IMPLEMENTED();
+    csubstr rootpath = "";
+    add_dir(rootpath, dirname);
 }
 
 void Workspace::add_file(csubstr tree_path, const char *filename_)

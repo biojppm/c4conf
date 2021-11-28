@@ -2,6 +2,7 @@
 #define C4_CONF_HPP_
 
 #include <c4/yml/yml.hpp>
+#include <c4/fs/fs.hpp>
 
 namespace c4 {
 namespace conf {
@@ -50,10 +51,14 @@ struct Workspace
     yml::Tree * m_output;
     bool        m_load_started;
     csubstr     m_arena_when_load_started;
+    // these are only needed for directories:
+    c4::fs::maybe_buf<char> m_dir_scratch = {};
+    c4::fs::EntryList       m_dir_entry_list = {};
 
     /** when @p workspace is null, default to the tree from this
      * workspace */
     Workspace(yml::Tree *output, yml::Tree *workspace=nullptr);
+    ~Workspace();
 
     void prepare_add_dir(const char *dirname);
     void prepare_add_dir(csubstr tree_path, const char *filename);
@@ -79,6 +84,25 @@ private:
     void _parse_yml(csubstr filename, substr yml);
     void _parse_yml(csubstr filename, csubstr yml);
     template<class CharType> void _add_conf(csubstr filename, csubstr dst_path, basic_substring<CharType> yml);
+
+    template<class T>
+    void _ensure(c4::fs::maybe_buf<T> *mb)
+    {
+        if(!mb->valid())
+        {
+            _release(mb);
+            mb->buf = (T*) m_output->m_alloc.allocate(sizeof(T) * mb->required_size, mb->buf);
+            mb->size = mb->required_size;
+        }
+    }
+    template<class T>
+    void _release(c4::fs::maybe_buf<T> *mb)
+    {
+        if(mb->buf)
+            m_output->m_alloc.free(mb->buf, sizeof(T) * mb->size);
+        mb->buf = nullptr;
+        mb->size = 0;
+    }
 };
 
 
