@@ -1,6 +1,6 @@
 #include "c4/conf/conf.hpp"
-#include "c4/error.hpp"
-#include "c4/memory_resource.hpp"
+#include <c4/error.hpp>
+#include <c4/memory_resource.hpp>
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
@@ -33,6 +33,24 @@ struct path_eq_yml
     }
     csubstr tree_path;
     csubstr yml;
+};
+struct maybe_path_eq_yml : public path_eq_yml
+{
+    maybe_path_eq_yml(csubstr spec) : path_eq_yml("=")
+    {
+        spec = spec.unquoted();
+        if(spec.count('='))
+        {
+            path_eq_yml parsed = {spec};
+            tree_path = parsed.tree_path;
+            yml = parsed.yml.unquoted();
+        }
+        else
+        {
+            tree_path = "";
+            yml = spec;
+        }
+    }
 };
 
 csubstr _get_leaf_key(csubstr path) noexcept
@@ -82,18 +100,33 @@ void Workspace::_load_started()
 
 substr Workspace::_alloc_arena(size_t sz) const
 {
+    _dbg("allocating arena: " << sz << "B: " << m_output->arena().len << "B-->" << m_output->arena().len + sz << "B / " << m_output->arena_capacity() << 'B');
+    C4_CHECK(m_output->arena_size() + sz <= m_output->arena_capacity());
     substr ret = m_output->alloc_arena(sz);
     C4_CHECK(m_arena_when_load_started.str == m_output->arena().str);
     return ret;
 }
 
+void Workspace::_reserve_arena(size_t sz) const
+{
+    size_t arena_cap = m_output->arena_capacity();
+    size_t arena_req = arena_cap + sz;
+    _dbg("reserving arena: " << sz << "B: " << arena_cap << "B-->" << arena_req << "B");
+    m_output->reserve_arena(arena_req);
+}
+
 void Workspace::prepare_add_dir(csubstr tree_path, const char *dirname)
 {
+    if(tree_path.not_empty())
+        _dbg("preparing add directory: " << tree_path << "=" << dirname);
+    else
+        _dbg("preparing add directory to root: " << dirname);
     C4_CHECK(!m_load_started);
     auto noop = [](fs::VisitedFile const&){ return 0; };
     // ensure the scratch has enough space for all the existing
     // filenames in the dir
-    m_dir_scratch.required_size = 256;
+    if(!m_dir_scratch.required_size)
+        m_dir_scratch.required_size = 256;
     bool ok;
     do
     {
@@ -103,17 +136,13 @@ void Workspace::prepare_add_dir(csubstr tree_path, const char *dirname)
     C4_CHECK(ok);
     // now prepare for each file in the dir
     auto file_visitor = [](fs::VisitedFile const& vf){
-        Workspace *this_ = (Workspace *)vf.user_data;
-        this_->prepare_add_file(vf.name);
+        ((Workspace *)vf.user_data)->prepare_add_file(vf.name);
         return 0;
     };
     ok = c4::fs::walk_entries(dirname, file_visitor, &m_dir_scratch, this);
     C4_CHECK(ok);
     // accomodate also the directory name
-    size_t req_filecontents = tree_path.len + 2u + strlen(dirname);
-    size_t arena_cap = m_output->arena_capacity();
-    size_t arena_req = arena_cap + req_filecontents;
-    m_output->reserve_arena(arena_req);
+    _reserve_arena(tree_path.len + 2u + strlen(dirname));
 }
 
 void Workspace::prepare_add_dir(const char *dirname)
@@ -123,29 +152,23 @@ void Workspace::prepare_add_dir(const char *dirname)
 
 void Workspace::prepare_add_file(csubstr tree_path, const char *filename)
 {
+    if(tree_path.not_empty())
+        _dbg("preparing add file: " << tree_path << "=" << filename);
+    else
+        _dbg("preparing add file to root: " << filename);
     C4_CHECK(!m_load_started);
-    size_t req_filecontents = tree_path.len + fs::file_size(filename) + 2u;
-    size_t arena_cap = m_output->arena_capacity();
-    size_t arena_req = arena_cap + req_filecontents;
-    m_output->reserve_arena(arena_req);
+    _reserve_arena(tree_path.len + 2u + strlen(filename) + 2u + fs::file_size(filename));
 }
 
 void Workspace::prepare_add_file(const char *filename)
 {
-    C4_CHECK(!m_load_started);
-    size_t req_filecontents = fs::file_size(filename) + 1u;
-    size_t arena_cap = m_output->arena_capacity();
-    size_t arena_req = arena_cap + req_filecontents;
-    m_output->reserve_arena(arena_req);
+    prepare_add_file("", filename);
 }
 
 void Workspace::prepare_add_conf(csubstr tree_path, csubstr conf_yml)
 {
     C4_CHECK(!m_load_started);
-    size_t req_conf = tree_path.len + conf_yml.len + 2u;
-    size_t arena_cap = m_output->arena_capacity();
-    size_t arena_req = arena_cap + req_conf;
-    m_output->reserve_arena(arena_req);
+    _reserve_arena(tree_path.len + 2u + conf_yml.len);
 }
 
 void Workspace::prepare_add_conf(csubstr tree_path_eq_conf_yml)
@@ -169,7 +192,7 @@ void Workspace::_parse_yml(csubstr filename, csubstr yml)
     if(yml.is_sub(m_output->arena()))
     {
         substr arena = m_output->arena();
-        size_t pos = yml.str - arena.str;
+        size_t pos = (size_t)(yml.str - arena.str);
         substr yml_copy = arena.sub(pos, yml.len);
         C4_ASSERT(yml_copy.str == yml.str);
         C4_ASSERT(yml_copy.len == yml.len);
@@ -184,32 +207,58 @@ void Workspace::_parse_yml(csubstr filename, csubstr yml)
     }
 }
 
+// ensure root is not a doc
+void Workspace::_remdoc(yml::Tree *t)
+{
+    C4_CHECK(!t->is_stream(t->root_id()));
+    t->_rem_flags(t->root_id(), c4::yml::DOC);
+}
+
+// ensure root has a key
+void Workspace::_askeyx(yml::Tree *t, csubstr key)
+{
+    size_t root = t->root_id();
+    C4_CHECK(!t->has_key(root));
+    C4_CHECK(t->is_val(root) || t->has_children(root));
+    C4_CHECK(!t->has_other_siblings(root));
+    yml::NodeData *C4_RESTRICT old_data = t->_p(root);
+    yml::NodeData saved = *old_data;
+    old_data->m_type = yml::MAP;
+    if(saved.m_type.is_doc())
+        if(saved.m_type.is_val())
+            saved.m_type = saved.m_type & ~yml::DOC;
+    size_t newid = t->append_child(root);
+    yml::NodeData *C4_RESTRICT new_data = t->_p(newid);
+    *new_data = saved;
+    new_data->m_type = new_data->m_type | yml::KEY;
+    new_data->m_key.scalar = key;
+    new_data->m_parent = root;
+    old_data->m_first_child = newid;
+    old_data->m_last_child = newid;
+    if(saved.m_last_child != yml::NONE)
+        t->_p(saved.m_last_child)->m_next_sibling = yml::NONE;
+    for(size_t ch = t->first_child(newid); ch != yml::NONE; ch = t->next_sibling(ch))
+    {
+        C4_ASSERT(t->_p(ch)->m_parent == root);
+        t->_p(ch)->m_parent = newid;
+    }
+}
+
 template<class CharType>
 void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<CharType> conf_yml)
 {
-    auto _parse = [this, filename](substr yml) -> size_t {
-        C4_STATIC_ASSERT((std::is_same<decltype(yml), substr>::value));
+    auto _setup_yml_as_val = [this, filename](basic_substring<CharType> yml){
         _parse_yml(filename, yml);
-        // ensure this is not a doc
-        C4_CHECK(!m_ws->is_stream(m_ws->root_id()));
-        m_ws->_rem_flags(m_ws->root_id(), c4::yml::DOC);
+        _remdoc(m_ws);
         _dbg("src_tree");_pr(*m_ws);
         return m_ws->root_id();
     };
-    auto _setup_yml_as_val = [this, &_parse](csubstr val){
-        size_t required = val.len;
-        substr yml_copy = _alloc_arena(required);
-        size_t used = c4::cat(yml_copy, val);
-        C4_CHECK(used == required);
-        return _parse(yml_copy);
-    };
-    auto _setup_yml_as_keyval = [this, &_parse](csubstr key, csubstr val){
-        size_t required = key.len + 2 + val.len;
-        substr yml_copy = _alloc_arena(required);
-        size_t used = c4::cat(yml_copy, key, ": ", val);
-        C4_CHECK(used == required);
-        size_t root_node = _parse(yml_copy);
-        size_t keyconf_node = m_ws->first_child(root_node);
+    auto _setup_yml_as_keyval = [this, filename](csubstr key, basic_substring<CharType> yml){
+        _parse_yml(filename, yml);
+        _askeyx(m_ws, key);
+        _remdoc(m_ws);
+        _dbg("src_tree");_pr(*m_ws);
+        size_t keyconf_node = m_ws->first_child(m_ws->root_id());
         return keyconf_node;
     };
 
@@ -280,6 +329,11 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
 
 void Workspace::add_dir(csubstr tree_path, const char *dirname)
 {
+    if(tree_path.not_empty())
+        _dbg("adding directory: " << tree_path << "=" << dirname);
+    else
+        _dbg("adding directory to root: " << dirname);
+
     m_dir_scratch.required_size = 256;
     bool ok;
     do
@@ -312,6 +366,10 @@ void Workspace::add_dir(const char *dirname)
 
 void Workspace::add_file(csubstr tree_path, const char *filename_)
 {
+    if(tree_path.not_empty())
+        _dbg("adding file: " << tree_path << "=" << filename_);
+    else
+        _dbg("adding file to root: " << filename_);
     _load_started();
     C4_CHECK(fs::is_file(filename_));
     // copy the file contents into the tree arena
@@ -355,11 +413,11 @@ void Workspace::apply_opts(OptArg const* args_, size_t num_args)
             break;
         case Opt::load_file:
             C4_ASSERT(strlen(arg.payload.data()) == arg.payload.len);
-            prepare_add_file(arg.payload.data());
+            prepare_add_file(arg.target, arg.payload.data());
             break;
         case Opt::load_dir:
             C4_ASSERT(strlen(arg.payload.data()) == arg.payload.len);
-            prepare_add_dir(arg.payload.data());
+            prepare_add_dir(arg.target, arg.payload.data());
             break;
         default:
             C4_ERROR("unknown action");
@@ -375,10 +433,10 @@ void Workspace::apply_opts(OptArg const* args_, size_t num_args)
             add_conf(arg.target, arg.payload);
             break;
         case Opt::load_file:
-            add_file(arg.payload.data());
+            add_file(arg.target, arg.payload.data());
             break;
         case Opt::load_dir:
-            add_dir(arg.payload.data());
+            add_dir(arg.target, arg.payload.data());
             break;
         default:
             C4_ERROR("unknown action");
@@ -394,7 +452,7 @@ size_t parse_opts(int *argc, char ***argv,
                   OptSpec const* specs, size_t num_specs,
                   OptArg *opt_args, size_t opt_args_size)
 {
-    auto getarg = [&argc, &argv](int i) -> csubstr { return to_csubstr((*argv)[i]); };
+    auto getarg = [&argc, &argv](int i) -> csubstr { C4_CHECK(i < *argc); return to_csubstr((*argv)[i]); };
     auto getspec = [specs, num_specs](csubstr a) -> OptSpec const* {
         for(size_t ispec = 0; ispec < num_specs; ++ispec)
             if(a == specs[ispec].optshort || a == specs[ispec].optlong)
@@ -419,31 +477,18 @@ size_t parse_opts(int *argc, char ***argv,
         _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": found spec: " << spec->optshort << "/" << spec->optlong);
         switch(spec->action)
         {
+        case Opt::load_file:
+        case Opt::load_dir:
         case Opt::set_node:
         {
-            C4_ASSERT(spec->num_expected_args == 2u);
             if(*argc < iarg + 2)
                 return argerror;
             if(opt_args && num_opt_args < opt_args_size)
             {
+                maybe_path_eq_yml parsed_spec(getarg(iarg + 1));
                 opt_args[num_opt_args].action = spec->action;
-                opt_args[num_opt_args].target = getarg(iarg + 1);
-                opt_args[num_opt_args].payload = getarg(iarg + 2);
-            }
-            iarg += 3;
-            break;
-        }
-        case Opt::load_file:
-        case Opt::load_dir:
-        {
-            C4_ASSERT(spec->num_expected_args == 1u);
-            if(*argc < iarg + 1)
-                return argerror;
-            if(opt_args && num_opt_args < opt_args_size)
-            {
-                opt_args[num_opt_args].action = spec->action;
-                opt_args[num_opt_args].target = {};
-                opt_args[num_opt_args].payload = getarg(iarg + 1);
+                opt_args[num_opt_args].target = parsed_spec.tree_path;
+                opt_args[num_opt_args].payload = parsed_spec.yml;
             }
             iarg += 2;
             break;

@@ -19,7 +19,6 @@ struct OptSpec
     csubstr optshort;
     csubstr optlong;
     csubstr help;
-    size_t  num_expected_args;
     Opt     action;
 };
 
@@ -80,6 +79,7 @@ private:
 
     void _load_started();
     substr _alloc_arena(size_t sz) const;
+    void _reserve_arena(size_t sz) const;
 
     void _parse_yml(csubstr filename, substr yml);
     void _parse_yml(csubstr filename, csubstr yml);
@@ -103,6 +103,9 @@ private:
         mb->buf = nullptr;
         mb->size = 0;
     }
+
+    static void _remdoc(yml::Tree *t);
+    static void _askeyx(yml::Tree *t, csubstr key);
 };
 
 

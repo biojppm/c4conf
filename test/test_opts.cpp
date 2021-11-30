@@ -38,9 +38,9 @@ key1:
 )";
 
 const OptSpec specs_buf[] = {
-    {"-n", "--node", "set node value", 2, Opt::set_node},
-    {"-f", "--file", "load file"     , 1, Opt::load_file},
-    {"-d", "--dir" , "load dir"      , 1, Opt::load_dir},
+    {"-n", "--node", "set node value", Opt::set_node},
+    {"-f", "--file", "load file"     , Opt::load_file},
+    {"-d", "--dir" , "load dir"      , Opt::load_dir},
 };
 
 
@@ -71,82 +71,120 @@ TEST(opts, set_node)
     expected_tree["key1"]["key1val1"].set_type(yml::KEYVAL);
     expected_tree["key1"]["key1val1"].set_val("now this is a scalar");
     expected_tree["key1"]["key1val0"][1].set_val("here it is overrided");
-    test_opts({"-a", "-n", "key1.key1val0[1]", "here it is", "-b", "b0", "--node", "key1.key1val1", "now this is a scalar", "-c", "c0", "c1", "-n", "key1.key1val0[1]", "here it is overrided"},
-              {"-a",                                         "-b", "b0",                                                    "-c", "c0", "c1"},
+    test_opts({"-a", "-n", "key1.key1val0[1]='here it is'", "-b", "b0", "--node", "key1.key1val1=\"now this is a scalar\"", "-c", "c0", "c1", "-n", "key1.key1val0[1]='here it is overrided'"},
+              {"-a",                                        "-b", "b0",                                                     "-c", "c0", "c1"},
               expected_args,
               expected_tree);
 }
 
-struct casefiles
+struct case1files
 {
-    casefiles()
+    case1files()
     {
         fs::mkdir("somedir");
-        fs::file_put_contents("somedir/file0", csubstr(R"(
-key0:
-  key0val0: now replaced as a scalar
-)"));
-        fs::file_put_contents("somedir/file2", csubstr(R"(
-key0:
-  key0val0: now replaced as a scalar, v2
-)"));
-        fs::file_put_contents("somedir/file3", csubstr(R"(
-key1:
-  key1val0: this one too, v2
-)"));
-        fs::file_put_contents("somedir/file1", csubstr(R"(
-key1:
-  key1val0: this one too
-)"));
+        fs::file_put_contents("somedir/file0", csubstr("{key0: {key0val0: now replaced as a scalar}}"));
+        fs::file_put_contents("somedir/file2", csubstr("{key0: {key0val0: NOW replaced as a scalar v2}}"));
+        fs::file_put_contents("somedir/file3", csubstr("{key1: {key1val0: THIS one too v2}}"));
+        fs::file_put_contents("somedir/file1", csubstr("{key1: {key1val0: this one too}}"));
+        // these are all equivalent:
+        fs::mkdir("somedir_to_node");
+        fs::mkdir("somedir_to_key0");
+        fs::mkdir("somedir_to_key1");
+        fs::file_put_contents("somedir_to_node/file0", csubstr("{key0val0: now replaced as a scalar}"));
+        fs::file_put_contents("somedir_to_node/file2", csubstr("{key0val0: NOW replaced as a scalar v2}"));
+        fs::file_put_contents("somedir_to_key0/file0", csubstr("{key0val0: now replaced as a scalar}"));
+        fs::file_put_contents("somedir_to_key0/file2", csubstr("{key0val0: NOW replaced as a scalar v2}"));
+        fs::file_put_contents("somedir_to_node/file3", csubstr("{key1val0: THIS one too v2}"));
+        fs::file_put_contents("somedir_to_node/file1", csubstr("{key1val0: this one too}"));
+        fs::file_put_contents("somedir_to_key1/file3", csubstr("{key1val0: THIS one too v2}"));
+        fs::file_put_contents("somedir_to_key1/file1", csubstr("{key1val0: this one too}"));
     }
-    ~casefiles()
+    ~case1files()
     {
-        fs::rmfile("somedir/file3");
-        fs::rmfile("somedir/file2");
-        fs::rmfile("somedir/file1");
-        fs::rmfile("somedir/file0");
-        fs::rmdir("somedir");
+        fs::rmtree("somedir");
+        fs::rmtree("somedir_to_node");
+        fs::rmtree("somedir_to_key0");
+        fs::rmtree("somedir_to_key1");
+    }
+    void transform1(yml::Tree *tree)
+    {
+        (*tree)["key0"]["key0val0"].clear_children();
+        (*tree)["key0"]["key0val0"].set_type(yml::KEYVAL);
+        (*tree)["key0"]["key0val0"].set_val("now replaced as a scalar");
+        (*tree)["key1"]["key1val0"].clear_children();
+        (*tree)["key1"]["key1val0"].set_type(yml::KEYVAL);
+        (*tree)["key1"]["key1val0"].set_val("this one too");
+    }
+    void transform2(yml::Tree *tree)
+    {
+        (*tree)["key0"]["key0val0"].clear_children();
+        (*tree)["key0"]["key0val0"].set_type(yml::KEYVAL);
+        (*tree)["key0"]["key0val0"].set_val("NOW replaced as a scalar v2");
+        (*tree)["key1"]["key1val0"].clear_children();
+        (*tree)["key1"]["key1val0"].set_type(yml::KEYVAL);
+        (*tree)["key1"]["key1val0"].set_val("THIS one too v2");
     }
 };
 
-TEST(opt, load_file)
+TEST(opts, load_file)
 {
-    casefiles setup;
+    case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     OptArg expected_args[] = {
         {Opt::load_file, {}, "somedir/file0"},
         {Opt::load_file, {}, "somedir/file1"},
     };
-    expected_tree["key0"]["key0val0"].clear_children();
-    expected_tree["key0"]["key0val0"].set_type(yml::KEYVAL);
-    expected_tree["key0"]["key0val0"].set_val("now replaced as a scalar");
-    expected_tree["key1"]["key1val0"].clear_children();
-    expected_tree["key1"]["key1val0"].set_type(yml::KEYVAL);
-    expected_tree["key1"]["key1val0"].set_val("this one too");
+    setup.transform1(&expected_tree);
     test_opts({"-a", "-f", "somedir/file0", "-b", "b0", "--file", "somedir/file1", "-c", "c0", "c1"},
               {"-a",                        "-b", "b0",                            "-c", "c0", "c1"},
               expected_args,
               expected_tree);
 }
 
-TEST(opt, load_dir)
+TEST(opts, load_file_to_node)
 {
-    casefiles setup;
+    case1files setup;
+    yml::Tree expected_tree = yml::parse(reftree);
+    OptArg expected_args[] = {
+        {Opt::load_file, "key0", "somedir_to_node/file0"},
+        {Opt::load_file, "key1", "somedir_to_node/file1"},
+    };
+    setup.transform1(&expected_tree);
+    test_opts({"-a", "-f", "key0=somedir_to_node/file0", "-b", "b0", "--file", "key1=somedir_to_node/file1", "-c", "c0", "c1"},
+              {"-a",                                     "-b", "b0",                                         "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+}
+
+TEST(opts, load_dir)
+{
+    case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     OptArg expected_args[] = {
         {Opt::load_dir, {}, "somedir"},
     };
-    expected_tree["key0"]["key0val0"].clear_children();
-    expected_tree["key0"]["key0val0"].set_type(yml::KEYVAL);
-    expected_tree["key0"]["key0val0"].set_val("now replaced as a scalar, v2");
-    expected_tree["key1"]["key1val0"].clear_children();
-    expected_tree["key1"]["key1val0"].set_type(yml::KEYVAL);
-    expected_tree["key1"]["key1val0"].set_val("this one too, v2");
+    setup.transform2(&expected_tree);
     test_opts({"-a", "-d", "somedir", "-b", "b0", "-c", "c0", "c1"},
               {"-a",                  "-b", "b0", "-c", "c0", "c1"},
               expected_args,
               expected_tree);
 }
+
+TEST(opts, load_dir_to_node)
+{
+    case1files setup;
+    yml::Tree expected_tree = yml::parse(reftree);
+    OptArg expected_args[] = {
+        {Opt::load_dir, "key0", "somedir_to_key0"},
+        {Opt::load_dir, "key1", "somedir_to_key1"},
+    };
+    setup.transform2(&expected_tree);
+    test_opts({"-a", "-d", "key0=somedir_to_key0", "-b", "b0", "-d", "key1=somedir_to_key1", "-c", "c0", "c1"},
+              {"-a",                               "-b", "b0",                               "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+}
+
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
