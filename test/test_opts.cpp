@@ -71,8 +71,50 @@ TEST(opts, set_node)
     expected_tree["key1"]["key1val1"].set_type(yml::KEYVAL);
     expected_tree["key1"]["key1val1"].set_val("now this is a scalar");
     expected_tree["key1"]["key1val0"][1].set_val("here it is overrided");
+    // quotes in the value
     test_opts({"-a", "-n", "key1.key1val0[1]='here it is'", "-b", "b0", "--node", "key1.key1val1=\"now this is a scalar\"", "-c", "c0", "c1", "-n", "key1.key1val0[1]='here it is overrided'"},
               {"-a",                                        "-b", "b0",                                                     "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+    // quotes in the arg
+    test_opts({"-a", "-n", "'key1.key1val0[1]=here it is'", "-b", "b0", "--node", "\"key1.key1val1=now this is a scalar\"", "-c", "c0", "c1", "-n", "'key1.key1val0[1]=here it is overrided'"},
+              {"-a",                                        "-b", "b0",                                                     "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+}
+
+TEST(opts, set_node_with_nonscalars)
+{
+    csubstr k1k1v01_ = "{nothing: really, actually: something}";
+    csubstr k1k1v1 = "[more, items, like, this, are, appended]";
+    csubstr k1k1v01 = "{Jacquesson: [741, 742], Gosset: Grande Reserve}";
+    yml::Tree expected_tree = yml::parse(reftree);
+    OptArg expected_args[] = {
+        {Opt::set_node, "key1.key1val0[1]", k1k1v01_},
+        {Opt::set_node, "key1.key1val1", k1k1v1},
+        {Opt::set_node, "key1.key1val0[1]", k1k1v01},
+    };
+    expected_tree["key1"]["key1val0"][1].change_type(yml::MAP);
+    expected_tree["key1"]["key1val0"][1]["nothing"] = "really";
+    expected_tree["key1"]["key1val0"][1]["actually"] = "something";
+    expected_tree["key1"]["key1val1"][3] = "more";
+    expected_tree["key1"]["key1val1"][4] = "items";
+    expected_tree["key1"]["key1val1"][5] = "like";
+    expected_tree["key1"]["key1val1"][6] = "this";
+    expected_tree["key1"]["key1val1"][7] = "are";
+    expected_tree["key1"]["key1val1"][8] = "appended";
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"] |= yml::SEQ;
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"][0] = "741";
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"][1] = "742";
+    expected_tree["key1"]["key1val0"][1]["Gosset"] = "Grande Reserve";
+    // quotes in the value
+    test_opts({"-a", "-n", "key1.key1val0[1]='{nothing: really, actually: something}'", "-b", "b0", "--node", "key1.key1val1=\"[more, items, like, this, are, appended]\"", "-c", "c0", "c1", "-n", "key1.key1val0[1]='{Jacquesson: [741, 742], Gosset: Grande Reserve}'"},
+              {"-a",                                                                    "-b", "b0",                                                                         "-c", "c0", "c1"},
+              expected_args,
+              expected_tree);
+    // quotes in the arg
+    test_opts({"-a", "-n", "'key1.key1val0[1]={nothing: really, actually: something}'", "-b", "b0", "--node", "\"key1.key1val1=[more, items, like, this, are, appended]\"", "-c", "c0", "c1", "-n", "'key1.key1val0[1]={Jacquesson: [741, 742], Gosset: Grande Reserve}'"},
+              {"-a",                                                                    "-b", "b0",                                                                         "-c", "c0", "c1"},
               expected_args,
               expected_tree);
 }
@@ -226,7 +268,7 @@ void test_opts(std::vector<std::string> const& input_args,
     };
     auto check_args = [&]{
         for(int iarg = 0; iarg < argc; ++iarg)
-            EXPECT_EQ(to_csubstr(input_args_ptr[iarg]), to_csubstr(filtered_args_ptr[iarg])) << iarg;
+            EXPECT_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(filtered_args_ptr[(size_t)iarg])) << iarg;
     };
     // must accept nullptr
     reset_args();
