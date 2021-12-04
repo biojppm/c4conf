@@ -401,7 +401,7 @@ void Workspace::add_conf(csubstr dst_path, csubstr conf_yml)
 
 void Workspace::apply_opts(OptArg const* args_, size_t num_args)
 {
-    // prepare
+    // prepare everything first
     OptArg const* C4_RESTRICT args = args_;
     for(size_t iarg = 0; iarg < num_args; ++iarg)
     {
@@ -423,7 +423,7 @@ void Workspace::apply_opts(OptArg const* args_, size_t num_args)
             C4_ERROR("unknown action");
         }
     }
-    // apply
+    // now we can apply
     for(size_t iarg = 0; iarg < num_args; ++iarg)
     {
         OptArg const& arg = args[iarg];

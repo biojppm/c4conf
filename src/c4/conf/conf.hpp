@@ -3,6 +3,7 @@
 
 #include <c4/yml/yml.hpp>
 #include <c4/fs/fs.hpp>
+#include <type_traits>
 
 namespace c4 {
 namespace conf {
@@ -38,26 +39,49 @@ size_t parse_opts(int *argc, char ***argv,
                   OptSpec const* specs, size_t num_specs,
                   OptArg *opt_args, size_t num_opt_args);
 
+template<class OptArgContainer>
+bool parse_opts(int *argc, char ***argv,
+                OptSpec const* specs, size_t num_specs,
+                OptArgContainer *opt_args)
+{
+    static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
+    size_t ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
+    if(ret == argerror)
+        return false;
+    if(ret > opt_args->size())
+    {
+        opt_args->resize(ret);
+        ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
+        C4_CHECK(ret == opt_args->size());
+    }
+    return true;
+}
+
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
+/** The main structure to create the configuration. */
 struct Workspace
 {
-    yml::Tree   m_wsbuf; //!< workspace buffer
-    yml::Tree * m_ws;    //!< workspace (working tree)
-    yml::Tree * m_output;
-    bool        m_load_started;
-    csubstr     m_arena_when_load_started;
-    // these are only needed for directories:
-    c4::fs::maybe_buf<char> m_dir_scratch = {};
-    c4::fs::EntryList       m_dir_entry_list = {};
-
-    /** when @p workspace is null, default to the tree from this
+    /** @p output the output directory
+     * @p workspace @p workspace is null, default to the tree from this
      * workspace */
     Workspace(yml::Tree *output, yml::Tree *workspace=nullptr);
     ~Workspace();
+
+    void apply_opts(OptArg const* args, size_t num_args);
+
+    template<class OptArgContainer>
+    void apply_opts(OptArgContainer const& opt_args)
+    {
+        static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
+        apply_opts(opt_args.data(), opt_args.size());
+    }
+
+    // all the prepare methods need to be called before its
+    // corresponding add method
 
     void prepare_add_dir(const char *dirname);
     void prepare_add_dir(csubstr tree_path, const char *filename);
@@ -73,7 +97,16 @@ struct Workspace
     void add_conf(csubstr tree_path_eq_conf_yml);
     void add_conf(csubstr tree_path, csubstr conf_yml);
 
-    void apply_opts(OptArg const* args, size_t num_args);
+public:
+
+    yml::Tree   m_wsbuf; //!< workspace buffer
+    yml::Tree * m_ws;    //!< workspace (working tree)
+    yml::Tree * m_output;
+    bool        m_load_started;
+    csubstr     m_arena_when_load_started;
+    // these are only needed for directories:
+    c4::fs::maybe_buf<char> m_dir_scratch = {};
+    c4::fs::EntryList       m_dir_entry_list = {};
 
 private:
 
