@@ -8,55 +8,7 @@
 namespace c4 {
 namespace conf {
 
-
-enum class Opt {
-    set_node,
-    load_file,
-    load_dir,
-};
-
-struct OptSpec
-{
-    csubstr optshort;
-    csubstr optlong;
-    csubstr help;
-    Opt     action;
-};
-
-struct OptArg
-{
-    Opt     action;
-    csubstr target;
-    csubstr payload;
-};
-
-
-enum : size_t { argerror = ((size_t)-1) };
-
-/** returns the number of arguments for @p opt_args or argerror in case
- * of error while parsing the arguments. */
-size_t parse_opts(int *argc, char ***argv,
-                  OptSpec const* specs, size_t num_specs,
-                  OptArg *opt_args, size_t num_opt_args);
-
-template<class OptArgContainer>
-bool parse_opts(int *argc, char ***argv,
-                OptSpec const* specs, size_t num_specs,
-                OptArgContainer *opt_args)
-{
-    static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
-    size_t ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
-    if(ret == argerror)
-        return false;
-    if(ret > opt_args->size())
-    {
-        opt_args->resize(ret);
-        ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
-        C4_CHECK(ret == opt_args->size());
-    }
-    return true;
-}
-
+struct OptArg;
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -141,6 +93,138 @@ private:
     static void _askeyx(yml::Tree *t, csubstr key);
 };
 
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+enum class Opt {
+    none,
+    set_node,
+    load_file,
+    load_dir,
+};
+
+struct OptSpec
+{
+    csubstr optshort;
+    csubstr optlong;
+    csubstr dummyname;
+    csubstr help;
+    Opt     action;
+    bool matches(const char *arg) const { return matches(to_csubstr(arg)); }
+    bool matches(csubstr a) const { return a == optshort || a == optlong; }
+};
+
+struct OptArg
+{
+    Opt     action;
+    csubstr target;
+    csubstr payload;
+};
+
+
+enum : size_t { argerror = ((size_t)-1) };
+
+/** returns the number of arguments for @p opt_args or argerror in case
+ * of error while parsing the arguments. */
+size_t parse_opts(int *argc, char ***argv,
+                  OptSpec const* specs, size_t num_specs,
+                  OptArg *opt_args, size_t num_opt_args);
+
+template<class OptArgContainer>
+bool parse_opts(int *argc, char ***argv,
+                OptSpec const* specs, size_t num_specs,
+                OptArgContainer *opt_args)
+{
+    static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
+    size_t ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
+    if(ret == argerror)
+        return false;
+    if(ret > opt_args->size())
+    {
+        opt_args->resize(ret);
+        ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
+        C4_CHECK(ret == opt_args->size());
+    }
+    return true;
+}
+
+template<class OStream>
+void print_help(OStream &os,
+                OptSpec const *specs, size_t num_specs,
+                csubstr section_title={}, size_t linewidth=70)
+{
+    auto print = [&os](csubstr value, size_t width=0) {
+        os.write(value.str, value.len);
+        if(!width) width = value.len;
+        for(size_t i = value.len; i < width; ++i) os << ' ';
+        return width;
+    };
+    auto printdummy = [&os](csubstr dummyname){
+        size_t len = 0;
+        if(!dummyname.empty())
+        {
+            os << ' ';
+            os.write(dummyname.str, dummyname.len);
+            len = 1 + dummyname.len;
+        }
+        return len;
+    };
+    if(section_title.not_empty())
+    {
+        for(size_t i = 0; i < section_title.len; ++i)
+            os << '-';
+        os << '\n';
+        os << section_title << '\n';
+        for(size_t i = 0; i < section_title.len; ++i)
+            os << '-';
+        os << '\n';
+    }
+    constexpr const size_t break_pos = 22;
+    for(OptSpec const* spec = specs; spec < specs + num_specs; ++spec)
+    {
+        size_t pos = 0;
+        if(!spec->optshort.empty())
+        {
+            pos += print("  ");
+            pos += print(spec->optshort);
+            pos += printdummy(spec->dummyname);
+        }
+        if(!spec->optlong.empty())
+        {
+            if(!spec->optshort.empty())
+                pos += print(", ");
+            else
+                pos += print("  ");
+            pos += print(spec->optlong);
+            pos += printdummy(spec->dummyname);
+        }
+        if(pos < break_pos - 2)
+        {
+            pos += print(" ", break_pos - pos);
+        }
+        else
+        {
+            print("\n");
+            pos = print(" ", break_pos);
+        }
+        for(csubstr word : spec->help.split(' '))
+        {
+            pos += print(word);
+            if(pos < linewidth)
+            {
+                pos += print(" ");
+            }
+            else
+            {
+                print("\n");
+                pos = print(" ", break_pos);
+            }
+        }
+        pos += print("\n");
+    }
+}
 
 } // namespace conf
 } // namespace c4

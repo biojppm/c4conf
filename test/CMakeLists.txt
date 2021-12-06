@@ -1,4 +1,4 @@
-c4_setup_testing()
+c4_setup_testing(GTEST)
 
 function(c4conf_test name)
     set(name c4conf-test-${name})

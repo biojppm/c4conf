@@ -40,9 +40,9 @@ key1:
 )";
 
 const OptSpec specs_buf[] = {
-    {"-n", "--node", "set node value", Opt::set_node},
-    {"-f", "--file", "load file"     , Opt::load_file},
-    {"-d", "--dir" , "load dir"      , Opt::load_dir},
+    {"-n", "--node", "set node value", {}, Opt::set_node},
+    {"-f", "--file", "load file"     , {}, Opt::load_file},
+    {"-d", "--dir" , "load dir"      , {}, Opt::load_dir},
 };
 
 

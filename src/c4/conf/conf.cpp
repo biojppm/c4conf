@@ -455,7 +455,7 @@ size_t parse_opts(int *argc, char ***argv,
     auto getarg = [&argc, &argv](int i) -> csubstr { C4_CHECK(i < *argc); return to_csubstr((*argv)[i]); };
     auto getspec = [specs, num_specs](csubstr a) -> OptSpec const* {
         for(size_t ispec = 0; ispec < num_specs; ++ispec)
-            if(a == specs[ispec].optshort || a == specs[ispec].optlong)
+            if(specs[ispec].matches(a))
                 return specs + ispec;
         return nullptr;
     };
