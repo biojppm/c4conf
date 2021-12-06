@@ -459,8 +459,16 @@ size_t parse_opts(int *argc, char ***argv,
                 return specs + ispec;
         return nullptr;
     };
-    int filtered_argc = 0;
     size_t num_opt_args = 0;
+    // if the output buffer size is insufficient, just report the
+    // needed size, and do not change the input arguments buffer
+    for(int iarg = 0; iarg < *argc; ++iarg)
+        num_opt_args += (getspec(getarg(iarg)) != nullptr);
+    if(num_opt_args > opt_args_size)
+        return num_opt_args;
+    // ok, now we know we have enough size
+    num_opt_args = 0;
+    int filtered_argc = 0;
     for(int iarg = 0; iarg < *argc; /*do nothing here*/)
     {
         OptSpec const* spec = getspec(getarg(iarg));
@@ -483,13 +491,11 @@ size_t parse_opts(int *argc, char ***argv,
         {
             if(*argc < iarg + 2)
                 return argerror;
-            if(opt_args && num_opt_args < opt_args_size)
-            {
-                maybe_path_eq_yml parsed_spec(getarg(iarg + 1));
-                opt_args[num_opt_args].action = spec->action;
-                opt_args[num_opt_args].target = parsed_spec.tree_path;
-                opt_args[num_opt_args].payload = parsed_spec.yml;
-            }
+            C4_ASSERT(opt_args && num_opt_args < opt_args_size);
+            maybe_path_eq_yml parsed_spec(getarg(iarg + 1));
+            opt_args[num_opt_args].action = spec->action;
+            opt_args[num_opt_args].target = parsed_spec.tree_path;
+            opt_args[num_opt_args].payload = parsed_spec.yml;
             iarg += 2;
             break;
         }

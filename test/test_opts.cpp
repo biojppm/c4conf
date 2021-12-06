@@ -15,6 +15,8 @@ void test_opts(std::vector<std::string> const& input_args,
                cspan<OptArg> expected_args,
                yml::Tree const& expected_tree);
 
+void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args);
+
 
 const csubstr reftree = R"(
 key0:
@@ -47,6 +49,43 @@ const OptSpec specs_buf[] = {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+
+TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
+{
+    std::vector<std::string> originalbuf = {"-n", "key0=val0", "-b", "b0", "-n", "key1=val1", "-c", "c0", "c1"};
+    std::vector<std::string> expectedbuf = {                   "-b", "b0",                    "-c", "c0", "c1"};
+    std::vector<char *> original;
+    std::vector<char *> expected;
+    to_args(originalbuf, &original);
+    to_args(expectedbuf, &expected);
+    ASSERT_GT(originalbuf.size(), expectedbuf.size());
+    size_t num_opts = 2u;
+    std::vector<OptArg> output;
+    std::vector<char *> actual = original;
+    int argc = (int)actual.size();
+    char ** argv = actual.data();
+    size_t ret;
+    ret = parse_opts(&argc, &argv,
+                     specs_buf, C4_COUNTOF(specs_buf),
+                     output.data(), output.size());
+    ASSERT_NE(ret, argerror);
+    EXPECT_EQ(ret, num_opts);
+    EXPECT_EQ((size_t)argc, actual.size());
+    EXPECT_EQ(argv, actual.data());
+    EXPECT_EQ(actual, original);
+    output.resize(ret);
+    ret = parse_opts(&argc, &argv,
+                     specs_buf, C4_COUNTOF(specs_buf),
+                     output.data(), output.size());
+    EXPECT_EQ(ret, num_opts);
+    EXPECT_EQ((size_t)argc, expected.size());
+    actual.resize((size_t)argc);
+    EXPECT_EQ(*argv, original[2]); // the first non-filtered option
+    for(size_t i = 0; i < (size_t)argc; ++i)
+    {
+        EXPECT_STREQ(actual[i], expected[i]) << "i=" << i;
+    }
+}
 
 TEST(opts, empty_is_ok)
 {
@@ -257,7 +296,7 @@ void test_opts(std::vector<std::string> const& input_args,
                cspan<OptArg> expected_args,
                yml::Tree const& expected_tree)
 {
-    std::vector<char*> input_args_ptr, filtered_args_ptr;
+    std::vector<char*> input_args_ptr, filtered_args_ptr, input_args_ptr_orig;
     int argc;
     char **argv;
     auto reset_args = [&]{
@@ -265,17 +304,19 @@ void test_opts(std::vector<std::string> const& input_args,
         to_args(filtered_args, &filtered_args_ptr);
         argc = (int) input_args_ptr.size();
         argv = input_args_ptr.data();
+        input_args_ptr_orig = input_args_ptr;
     };
-    auto check_args = [&]{
+    auto check_input_args = [&]{
+        EXPECT_EQ(argc, (int)input_args.size());
         for(int iarg = 0; iarg < argc; ++iarg)
-            EXPECT_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(filtered_args_ptr[(size_t)iarg])) << iarg;
+            EXPECT_STREQ(input_args_ptr[(size_t)iarg], input_args_ptr_orig[(size_t)iarg]) << "i=" << iarg;
     };
     // must accept nullptr
     reset_args();
     size_t ret = parse_opts(&argc, &argv, nullptr);
     ASSERT_NE(ret, argerror);
     EXPECT_EQ(ret, expected_args.size());
-    check_args();
+    check_input_args();
     // must deal with insufficient buffer size
     reset_args();
     std::vector<OptArg> buf;
@@ -284,10 +325,10 @@ void test_opts(std::vector<std::string> const& input_args,
     ret = parse_opts(&argc, &argv, &buf_out);
     ASSERT_NE(ret, argerror);
     EXPECT_EQ(ret, expected_args.size());
-    EXPECT_EQ(argc, (int)filtered_args.size());
+    EXPECT_EQ(argc, (int)input_args.size());
     EXPECT_EQ(buf_out.size(), buf.size());
     EXPECT_EQ(buf_out.data(), buf.data());
-    check_args();
+    check_input_args();
     // must deal with sufficient buffer size
     reset_args();
     buf.resize(expected_args.size());
@@ -298,7 +339,8 @@ void test_opts(std::vector<std::string> const& input_args,
     EXPECT_EQ(argc, (int)filtered_args.size());
     EXPECT_EQ(buf_out.size(), expected_args.size());
     EXPECT_EQ(buf_out.data(), buf.data());
-    check_args();
+    for(int iarg = 0; iarg < argc; ++iarg)
+        EXPECT_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(filtered_args_ptr[(size_t)iarg])) << iarg;
     for(size_t iarg = 0; iarg < expected_args.size(); ++iarg)
     {
         EXPECT_EQ(buf_out[iarg].action, expected_args[iarg].action) << iarg;
