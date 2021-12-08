@@ -16,6 +16,12 @@ void test_opts(std::vector<std::string> const& input_args,
                yml::Tree const& expected_tree);
 
 void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args);
+std::vector<char*> to_args(std::vector<std::string> const& stringvec)
+{
+    std::vector<char*> args;
+    to_args(stringvec, &args);
+    return args;
+}
 
 
 const csubstr reftree = R"(
@@ -48,7 +54,47 @@ const ConfigActionSpec specs_buf[] = {
     spec_for<ConfigAction::load_dir>("-d", "--dir"),
     {ConfigAction::callback, action1, "-a1", "--action1", {}, "action 1"},
     {ConfigAction::callback, action2, "-a2", "--action2", {}, "action 2"},
+    {ConfigAction::callback, action2, "-o", "--optional", "[<optionalval>]", ""},
 };
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+size_t call_with_args(std::initializer_list<std::string> il)
+{
+    std::vector<std::string> args_buf(il);
+    std::vector<char*> args = to_args(args_buf);
+    int argc = (int)args.size();
+    char ** argv = args.data();
+    return parse_opts(&argc, &argv, specs_buf, C4_COUNTOF(specs_buf), nullptr, 0);
+}
+
+TEST(opts, missing_args_are_flagged)
+{
+    EXPECT_EQ(call_with_args({"-n"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-n"  /*missing*/, "-n", "notmissing"}), argerror);
+    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n", "notmissing"}), 2u);
+    EXPECT_EQ(call_with_args({"-f"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-f"  /*missing*/, "-f", "notmissing"}), argerror);
+    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f", "notmissing"}), 2u);
+    EXPECT_EQ(call_with_args({"-d"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-d"  /*missing*/, "-d", "notmissing"}), argerror);
+    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d", "notmissing"}), 2u);
+}
+
+TEST(opts, optional_args_are_not_mandatory)
+{
+    EXPECT_EQ(call_with_args({"-o"  /*missing*/}), 1u);
+    EXPECT_EQ(call_with_args({"-o"  /*missing*/, "-o", "notmissing"}), 2u);
+    EXPECT_EQ(call_with_args({"-o", "notmissing", "-o"  /*missing*/}), 2u);
+    EXPECT_EQ(call_with_args({"-o", "notmissing", "-o", "notmissing"}), 2u);
+    EXPECT_EQ(call_with_args({"-o"  /*missing*/, "-o"   /*missing*/}), 2u);
+}
 
 
 //-----------------------------------------------------------------------------
