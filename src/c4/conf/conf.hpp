@@ -1,6 +1,7 @@
 #ifndef C4_CONF_HPP_
 #define C4_CONF_HPP_
 
+#include "c4/language.hpp"
 #include <c4/yml/yml.hpp>
 #include <c4/fs/fs.hpp>
 #include <type_traits>
@@ -8,11 +9,16 @@
 namespace c4 {
 namespace conf {
 
-struct OptArg;
+using substr = c4::substr;
+using csubstr = c4::csubstr;
+using Tree = c4::yml::Tree;
+
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+
+struct ParsedOpt;
 
 /** The main structure to create the configuration. */
 struct Workspace
@@ -23,12 +29,12 @@ struct Workspace
     Workspace(yml::Tree *output, yml::Tree *workspace=nullptr);
     ~Workspace();
 
-    void apply_opts(OptArg const* args, size_t num_args);
+    void apply_opts(ParsedOpt const* args, size_t num_args);
 
     template<class OptArgContainer>
     void apply_opts(OptArgContainer const& opt_args)
     {
-        static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
+        static_assert(std::is_same<typename OptArgContainer::value_type, ParsedOpt>::value, "must be container of OptArg");
         apply_opts(opt_args.data(), opt_args.size());
     }
 
@@ -98,75 +104,227 @@ private:
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-enum class Opt {
-    none,
+/** @name command line option specification */
+/** @{ */
+
+/** Actions for configuration through command line options. */
+enum class ConfigAction
+{
+    /** Load explicit YAML into a target config node.
+     * <targetpath> is optional, and defaults to the root level;
+     * ie, when <targetpath> is omitted, then the YAML tree
+     * resulting from parsing <validyaml> is merged starting at
+     * the config tree's root node.
+     * Otherwise the tree from <validyaml> is merged starting at
+     * the config tree's node at <targetpath>. */
     set_node,
+    /** Load a YAML file and merge into a target config node.
+     * <targetpath> is optional, and defaults to the root level;
+     * ie, when <targetpath> is omitted, then the YAML tree
+     * resulting from parsing <validyaml> is merged starting at
+     * the config tree's root node.
+     * Otherwise the tree from <validyaml> is merged starting at
+     * the config tree's node at <targetpath>. */
     load_file,
+    /** Consecutively load all files in a directory as YAML into a target config node.
+     * All files are visited even if their extension is neither of .yml or .yaml.
+     * Files are visited in alphabetical order.
+     * <targetpath> is optional, and defaults to the root level;
+     * ie, when <targetpath> is omitted, then the YAML tree
+     * resulting from parsing <validyaml> is merged starting at
+     * the config tree's root node.
+     * Otherwise the tree from <validyaml> is merged starting at
+     * the config tree's node at <targetpath>. */
     load_dir,
+    /** Perform a custom action. */
+    callback,
 };
 
-struct OptSpec
+/** The function pointer type to be used with the callback action */
+using pfn_callback = void (*)(Tree&, csubstr arg);
+
+/** An action specification */
+struct ConfigActionSpec
 {
+    ConfigAction action;
+    //! the function to use for callback actions. Can be null otherwise.
+    pfn_callback callback;
+    //! the short-form command line option, eg "-c" or "-cn"
     csubstr optshort;
+    //! the long-form command line option, eg "--conf-node"
     csubstr optlong;
+    /** a representation of the argument to be accepted by the option.
+     * Leave empty to signify that no further argument is expected.
+     * Enclose the whole string in square brackets to signify that a
+     * further argument is optional. */
     csubstr dummyname;
+    //! describe what the command line option does
     csubstr help;
-    Opt     action;
+
     bool matches(const char *arg) const { return matches(to_csubstr(arg)); }
     bool matches(csubstr a) const { return a == optshort || a == optlong; }
+    bool expects_arg() const { return !dummyname.empty(); }
+    bool accepts_optional_arg() const { return expects_arg() && dummyname.begins_with('[') && dummyname.ends_with(']'); };
 };
 
-struct OptArg
+
+template<ConfigAction action> constexpr ConfigActionSpec spec_for(csubstr optshort, csubstr optlong={});
+/** A helper to create the set_node action specification */
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::set_node>(csubstr optshort, csubstr optlong)
 {
-    Opt     action;
-    csubstr target;
-    csubstr payload;
+    return {
+        ConfigAction::set_node,
+        {},
+        optshort,
+        optlong,
+        // argument
+        "[<targetpath>=]<validyaml>",
+        // help
+        "Load explicit YAML code into a target config node. "
+        "<targetpath> is optional, and defaults to the root level; "
+        "ie, when <targetpath> is omitted, then the YAML tree "
+        "resulting from parsing <validyaml> is merged starting at "
+        "the config tree's root node. "
+        "Otherwise the tree from <validyaml> is merged starting at "
+        "the config tree's node at <targetpath>.",
+    };
+}
+/** A helper to create the load_file action specification */
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_file>(csubstr optshort, csubstr optlong)
+{
+    return {
+        ConfigAction::load_file,
+        {},
+        optshort,
+        optlong,
+        // argument
+        "[<targetpath>=]<filename>",
+        // help
+        "Load a YAML file and merge into a target config node. "
+        "<targetpath> is optional, and defaults to the root level; "
+        "ie, when <targetpath> is omitted, then the YAML tree "
+        "resulting from parsing <validyaml> is merged starting at "
+        "the config tree's root node. "
+        "Otherwise the tree from <validyaml> is merged starting at "
+        "the config tree's node at <targetpath>.",
+    };
+}
+/** A helper to create the load_dir action specification */
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_dir>(csubstr optshort, csubstr optlong)
+{
+    return {
+        ConfigAction::load_dir,
+        {},
+        optshort,
+        optlong,
+        // argument
+        "[<targetpath>=]<directory>",
+        // help
+        "Consecutively load all files in a directory as YAML into a target config node. "
+        "All files are visited even if their extension is neither of .yml or .yaml. "
+        "Files are visited in alphabetical order. "
+        "<targetpath> is optional, and defaults to the root level; "
+        "ie, when <targetpath> is omitted, then the YAML tree "
+        "resulting from parsing <validyaml> is merged starting at "
+        "the config tree's root node. "
+        "Otherwise the tree from <validyaml> is merged starting at "
+        "the config tree's node at <targetpath>.",
+    };
+}
+
+/** @} */
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+/** @name command line option parsing */
+/** @{ */
+
+/** A configure option parsed from command line arguments */
+struct ParsedOpt
+{
+    ConfigAction action;   //!< the specified action
+    csubstr target;        //!< the path to the target node
+    csubstr payload;       //!< the argument
+    pfn_callback callback; //!< the function for the callback action
+};
+
+enum : size_t {
+    /** a value signifying that there was an error parsing the command line options. */
+    argerror = ((size_t)-1)
 };
 
 
-enum : size_t { argerror = ((size_t)-1) };
-
-/** returns the number of arguments for @p opt_args or argerror in case
- * of error while parsing the arguments. */
+/** Parse command line options into the given buffer. This will
+ * extract any configuration arguments matching any of the
+ * @p num_specs specifications given in @p specs. The
+ * configuration arguments are written into @p parsed_opts, up to
+ * the size passed in @p parsed_opts_size. All other remaining
+ * arguments kept in @p argc. @p argc and @p argv are adjusted to
+ * refer only to these remaining arguments.
+ *
+ * @return If there was an error while parsing the command line
+ * options, return argerror. Otherwise, return the size of the buffer
+ * needed to accomodate all the command line options. */
 size_t parse_opts(int *argc, char ***argv,
-                  OptSpec const* specs, size_t num_specs,
-                  OptArg *opt_args, size_t num_opt_args);
+                  ConfigActionSpec const* specs, size_t num_specs,
+                  ParsedOpt *parsed_opts, size_t parsed_opts_size);
 
-template<class OptArgContainer>
+
+/** Parse command line options into the given container. Works as (1),
+ * except it receives an output container, which will be resized as
+ * needed to accomodate the passed arguments.
+ *
+ * @return false if there was an error parsing the arguments */
+template<class ParsedOptContainer>
 bool parse_opts(int *argc, char ***argv,
-                OptSpec const* specs, size_t num_specs,
-                OptArgContainer *opt_args)
+                ConfigActionSpec const* specs, size_t num_specs,
+                ParsedOptContainer *parsed_opts)
 {
-    static_assert(std::is_same<typename OptArgContainer::value_type, OptArg>::value, "must be container of OptArg");
-    size_t ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
+    static_assert(std::is_same<typename ParsedOptContainer::value_type, ParsedOpt>::value, "must be container of ParsedOpt");
+    size_t ret = parse_opts(argc, argv, specs, num_specs, parsed_opts->data(), parsed_opts->size());
     if(ret == argerror)
         return false;
-    if(ret > opt_args->size())
+    if(ret > parsed_opts->size())
     {
-        opt_args->resize(ret);
-        ret = parse_opts(argc, argv, specs, num_specs, opt_args->data(), opt_args->size());
-        C4_CHECK(ret == opt_args->size());
+        parsed_opts->resize(ret);
+        ret = parse_opts(argc, argv, specs, num_specs, parsed_opts->data(), parsed_opts->size());
+        C4_CHECK(ret == parsed_opts->size());
     }
     return true;
 }
 
-template<class OStream>
-void print_help(OStream &os,
-                OptSpec const *specs, size_t num_specs,
-                csubstr section_title={}, size_t linewidth=70)
+/** @} */
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+/** @name Facilities for printing help */
+/** @{ */
+
+/** print help for configuration command line options.
+ * @p dump is a function accepting a csubstr as its single argument, which should print it. */
+template<class DumpFn>
+C4_NO_INLINE void print_help(DumpFn &&dump,
+                             ConfigActionSpec const *specs, size_t num_specs,
+                             csubstr section_title={}, size_t linewidth=70)
 {
-    auto print = [&os](csubstr value, size_t width=0) {
-        os.write(value.str, value.len);
+    auto print = [&dump](csubstr value, size_t width=0) {
+        dump(value);
         if(!width) width = value.len;
-        for(size_t i = value.len; i < width; ++i) os << ' ';
+        for(size_t i = value.len; i < width; ++i) dump(" ");
         return width;
     };
-    auto printdummy = [&os](csubstr dummyname){
+    auto printdummy = [&dump](csubstr dummyname){
         size_t len = 0;
         if(!dummyname.empty())
         {
-            os << ' ';
-            os.write(dummyname.str, dummyname.len);
+            dump(" ");
+            dump(dummyname);
             len = 1 + dummyname.len;
         }
         return len;
@@ -174,15 +332,16 @@ void print_help(OStream &os,
     if(section_title.not_empty())
     {
         for(size_t i = 0; i < section_title.len; ++i)
-            os << '-';
-        os << '\n';
-        os << section_title << '\n';
+            dump("-");
+        dump("\n");
+        dump(section_title);
+        dump("\n");
         for(size_t i = 0; i < section_title.len; ++i)
-            os << '-';
-        os << '\n';
+            dump("-");
+        dump("\n");
     }
     constexpr const size_t break_pos = 22;
-    for(OptSpec const* spec = specs; spec < specs + num_specs; ++spec)
+    for(ConfigActionSpec const* spec = specs; spec < specs + num_specs; ++spec)
     {
         size_t pos = 0;
         if(!spec->optshort.empty())
@@ -225,6 +384,8 @@ void print_help(OStream &os,
         pos += print("\n");
     }
 }
+
+/** @} */
 
 } // namespace conf
 } // namespace c4

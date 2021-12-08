@@ -2,6 +2,8 @@
 #include <vector>
 #include <iostream>
 
+using namespace c4::conf;
+
 // this will be used to create the default config tree
 const char default_settings[] = R"(
 foo:
@@ -16,62 +18,13 @@ bar:
 baz: definitely
 )";
 
-// these are command line options for changing config through raw YAML, handled by c4conf:
-constexpr const c4::conf::OptSpec conf_specs[] = {
-    {"-n", "--node", "[<targetpath>=]<validyaml>",
-                     "Load explicit YAML into a target node. "
-                     "<targetpath> is optional, and defaults to the root level.",
-                     c4::conf::Opt::set_node},
-    {"-f", "--file", "[<targetpath>=]<filename>",
-                     "Load a YAML file and merge into a target node. "
-                     "<targetpath> is optional, and defaults to the root level",
-                     c4::conf::Opt::load_file},
-    {"-d", "--dir", "[<targetpath>=]<dirname>",
-                     "Consecutively load all files in a directory as YAML. "
-                     "All files are visited even if the "
-                     "Files are visited in alphabetical order. "
-                     "<targetpath> is optional, and defaults to the root level.",
-                     c4::conf::Opt::load_dir},
-};
-// these are command line options to change the config through a custom action:
-enum { help = 0, set_foo, set_bar };
-constexpr const c4::conf::OptSpec app_specs[] = {
-    {"-h", "--help", "", "show help", {}},
-    {"-sf", "--set-foo", "", "set several values inside foo", {}},
-    {"-sb", "--set-bar", "", "set several values inside bar, and set baz as well", {}},
-};
-
-struct Config
+// foo action
+void setfoo(Tree &tree, csubstr)
 {
-    c4::yml::Tree tree; // this is the configuration tree
-    Config(int *argc, char ***argv) : tree()
-    {
-        // create the defaults tree
-        c4::yml::parse("(defaults)", default_settings, &tree);
-        // parse the input options (argc, argv), filtering out cfg
-        // args and gathering them into the output
-        std::vector<c4::conf::OptArg> cfg_args;
-        parse_opts(argc, argv, conf_specs, C4_COUNTOF(conf_specs), &cfg_args);
-        // now apply the selected input options onto the defaults tree
-        c4::conf::Workspace workspace(&tree);
-        workspace.apply_opts(cfg_args);
-    }
-};
-
-void show_help()
-{
-    c4::conf::print_help(std::cout, conf_specs, C4_COUNTOF(conf_specs), "direct options");
-    std::cout << "\n";
-    c4::conf::print_help(std::cout, app_specs, C4_COUNTOF(app_specs), "conf options");
-    std::cout << "\n";
-}
-
-void setfoo(c4::yml::Tree &tree)
-{
-    // a prior naked YAML option may have changed foo to a different type.
+    // a prior config option may have changed foo to a different type.
     // so ensure that it has the same struct as the defaults
-    if(!tree["foo"].is_seq() || tree["foo"].num_children() < 3)
-        throw std::runtime_error("cannot setfoo()");
+    if(!tree["foo"].is_seq() || tree["foo"].num_children() < 4)
+        C4_ERROR("cannot setfoo()");
     tree["foo"][2] = "foo2, actually footoo";
     tree["foo"][3].change_type(c4::yml::SEQ);
     tree["foo"][3][0] = "foo3elm0";
@@ -79,33 +32,101 @@ void setfoo(c4::yml::Tree &tree)
     tree["foo"][3][2] = "foo3elm2";
 }
 
-void setbar(c4::yml::Tree &tree)
+// bar action
+void setbar(Tree &tree, csubstr)
 {
+    // a prior config option may have changed bar to a different type.
+    // so ensure that it has the same struct as the defaults
     if(!tree["bar"].is_map() || tree["bar"].num_children() < 3)
-        throw std::runtime_error("cannot setbar()");
+        C4_ERROR("cannot setbar()");
     tree["bar"]["add more"] = "one";
     tree["bar"]["add more again"] = "two";
     tree["baz"] = "definitely maybe";
 }
 
+// foo3 action
+void setfoo3(Tree &tree, csubstr foo3val)
+{
+    // a prior config option may have changed foo to a different type.
+    // so ensure that it has the same struct as the defaults
+    if(!tree["foo"].is_seq() || tree["foo"].num_children() < 4)
+        C4_ERROR("cannot setfoo3()");
+    tree["foo"][3] = foo3val;
+}
+
+// bar2 action
+void setbar2(Tree &tree, csubstr bar2val)
+{
+    // a prior config option may have changed foo to a different type.
+    // so ensure that it has the same struct as the defaults
+    if(!tree["bar"].is_map() || tree["bar"].num_children() < 3)
+        C4_ERROR("cannot setbar2()");
+    tree["bar"]["bar2"] = bar2val; // ensure the value is copied to the tree's arena
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+// Create the specs for the command line options to be handled by c4conf
+constexpr const ConfigActionSpec conf_specs[] = {
+    {ConfigAction::callback, &setfoo , "-sf" , "--set-foo"     , {}           , "set foo"     },
+    {ConfigAction::callback, &setbar , "-sb" , "--set-bar"     , {}           , "set bar"     },
+    {ConfigAction::callback, &setfoo3, "-sf3", "--set-foo3-val", "<foo3val>"  , "set foo3 val"},
+    {ConfigAction::callback, &setbar2, "-sb2", "--set-bar2-val", "[<bar2val>]", "set bar2 val"},
+    spec_for<ConfigAction::set_node> ("-cn", "--conf-node"),
+    spec_for<ConfigAction::load_file>("-cf", "--conf-file"),
+    spec_for<ConfigAction::load_dir> ("-cd", "--conf-dir"),
+};
+
+// Our configuration tree
+struct Config
+{
+    Tree tree; // this is the configuration tree
+    Config(int *argc, char ***argv) : tree()
+    {
+        // create the defaults tree
+        parse("(defaults)", default_settings, &tree);
+        // parse the input options (argc, argv), filtering out
+        // config options, and gathering them into this temporary.
+        // Any options not listed in conf_specs are ignored.
+        std::vector<ParsedOpt> cfg_args;
+        if(!parse_opts(argc, argv, conf_specs, C4_COUNTOF(conf_specs), &cfg_args))
+            C4_ERROR("error parsing arguments");
+        // now apply the config options onto the defaults tree
+        Workspace workspace(&tree);
+        workspace.apply_opts(cfg_args);
+    }
+};
+
+void show_help(const char *exename)
+{
+    auto dump = [](csubstr s){ std::cout << s; };
+    print_help(dump, conf_specs, C4_COUNTOF(conf_specs), "conf options");
+    std::cout << "\n";
+    std::cout << R"(
+--------
+EXAMPLES
+--------
+  exe -n foo=[these,will,be,appended]
+  exe -n foo=~ -n foo=[these,will,override]
+
+)";
+}
 
 int main(int argc, char **argv)
 {
     Config cfg(&argc, &argv);
+    // at this point, any c4::conf arguments are
+    // filtered out of argc and argv
     for(auto *arg = argv + 1; arg < argv + argc; ++arg)
     {
-        if(app_specs[help].matches(*arg))
+        csubstr s{*arg, strlen(*arg)};
+        if(s == "-h" || s == "--help")
         {
-            show_help();
+            show_help(argv[0]);
             return 0;
-        }
-        else if(app_specs[set_foo].matches(*arg))
-        {
-            setfoo(cfg.tree);
-        }
-        else if(app_specs[set_bar].matches(*arg))
-        {
-            setbar(cfg.tree);
         }
         else
         {

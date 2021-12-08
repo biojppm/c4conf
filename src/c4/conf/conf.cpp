@@ -4,8 +4,7 @@
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
-#define _C4CONF_VERBOSE
-#ifndef _C4CONF_VERBOSE
+#ifdef NDEBUG
 #define _pr(...)
 #define _dbg(...)
 #else
@@ -399,25 +398,27 @@ void Workspace::add_conf(csubstr dst_path, csubstr conf_yml)
     _add_conf("", dst_path, conf_yml);
 }
 
-void Workspace::apply_opts(OptArg const* args_, size_t num_args)
+void Workspace::apply_opts(ParsedOpt const* args_, size_t num_args)
 {
     // prepare everything first
-    OptArg const* C4_RESTRICT args = args_;
+    ParsedOpt const* C4_RESTRICT args = args_;
     for(size_t iarg = 0; iarg < num_args; ++iarg)
     {
-        OptArg const& arg = args[iarg];
+        ParsedOpt const& arg = args[iarg];
         switch(arg.action)
         {
-        case Opt::set_node:
+        case ConfigAction::set_node:
             prepare_add_conf(arg.target, arg.payload);
             break;
-        case Opt::load_file:
+        case ConfigAction::load_file:
             C4_ASSERT(strlen(arg.payload.data()) == arg.payload.len);
             prepare_add_file(arg.target, arg.payload.data());
             break;
-        case Opt::load_dir:
+        case ConfigAction::load_dir:
             C4_ASSERT(strlen(arg.payload.data()) == arg.payload.len);
             prepare_add_dir(arg.target, arg.payload.data());
+            break;
+        case ConfigAction::callback:
             break;
         default:
             C4_ERROR("unknown action");
@@ -426,17 +427,20 @@ void Workspace::apply_opts(OptArg const* args_, size_t num_args)
     // now we can apply
     for(size_t iarg = 0; iarg < num_args; ++iarg)
     {
-        OptArg const& arg = args[iarg];
+        ParsedOpt const& arg = args[iarg];
         switch(arg.action)
         {
-        case Opt::set_node:
+        case ConfigAction::set_node:
             add_conf(arg.target, arg.payload);
             break;
-        case Opt::load_file:
+        case ConfigAction::load_file:
             add_file(arg.target, arg.payload.data());
             break;
-        case Opt::load_dir:
+        case ConfigAction::load_dir:
             add_dir(arg.target, arg.payload.data());
+            break;
+        case ConfigAction::callback:
+            arg.callback(*m_output, arg.payload);
             break;
         default:
             C4_ERROR("unknown action");
@@ -448,30 +452,96 @@ void Workspace::apply_opts(OptArg const* args_, size_t num_args)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-size_t parse_opts(int *argc, char ***argv,
-                  OptSpec const* specs, size_t num_specs,
-                  OptArg *opt_args, size_t opt_args_size)
+
+bool opt_expects_arg(csubstr dummyname)
 {
-    auto getarg = [&argc, &argv](int i) -> csubstr { C4_CHECK(i < *argc); return to_csubstr((*argv)[i]); };
-    auto getspec = [specs, num_specs](csubstr a) -> OptSpec const* {
+    return (!dummyname.empty());
+}
+
+size_t parse_opts(int *argc, char ***argv,
+                  ConfigActionSpec const* specs, size_t num_specs,
+                  ParsedOpt *opt_args, size_t opt_args_size)
+{
+    auto getspec = [specs, num_specs](csubstr a) -> ConfigActionSpec const* {
         for(size_t ispec = 0; ispec < num_specs; ++ispec)
             if(specs[ispec].matches(a))
                 return specs + ispec;
         return nullptr;
     };
+    auto getarg = [&argc, &argv](int i) -> csubstr { C4_CHECK(i < *argc); return to_csubstr((*argv)[i]); };
+    auto check_next_arg = [&](int iarg) -> bool {
+        _dbg("arg[" << iarg << "]: expect one more argument");
+        if(*argc < iarg + 2)
+            return false;
+        if(getarg(iarg + 1).begins_with('-')) // the next argument must not start with '-'
+            return false;
+        return true;
+    };
+    auto get_optional_arg = [&](int iarg, ConfigActionSpec const* spec, csubstr *optional_arg=nullptr) -> bool {
+        if(spec->accepts_optional_arg())
+        {
+            if(*argc < iarg + 2)
+                return false;
+            csubstr next_arg = getarg(iarg + 1);
+            if(next_arg.begins_with('-')) // the next argument must not start with '-'
+                return false;
+            _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": optional arg provided: " << next_arg);
+            if(optional_arg)
+                *optional_arg = next_arg;
+        }
+        else
+        {
+            C4_ASSERT(*argc >= iarg + 2);
+            csubstr next_arg = getarg(iarg + 1);
+            C4_ASSERT(!next_arg.begins_with('-'));
+            _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": expected arg: " << next_arg);
+            if(optional_arg)
+                *optional_arg = next_arg;
+        }
+        return true;
+    };
     size_t num_opt_args = 0;
     // if the output buffer size is insufficient, just report the
     // needed size, and do not change the input arguments buffer
     for(int iarg = 0; iarg < *argc; ++iarg)
-        num_opt_args += (getspec(getarg(iarg)) != nullptr);
+    {
+        ConfigActionSpec const* spec = getspec(getarg(iarg));
+        if(!spec)
+            continue;
+        _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": found spec: " << spec->optshort << "/" << spec->optlong);
+        ++num_opt_args;
+        // but report argerror ASAP
+        switch(spec->action)
+        {
+        case ConfigAction::load_file:
+        case ConfigAction::load_dir:
+        case ConfigAction::set_node:
+            if(!check_next_arg(iarg))
+                return argerror;
+            ++iarg;
+            break;
+        case ConfigAction::callback:
+        {
+            if(get_optional_arg(iarg, spec))
+                ++iarg;
+            break;
+        }
+        default:
+            C4_ERROR("unknown action");
+        }
+    }
+    // now we know the arguments are sane
     if(num_opt_args > opt_args_size)
+    {
+        _dbg("require " << num_opt_args << " args, but space only for " << opt_args_size);
         return num_opt_args;
+    }
     // ok, now we know we have enough size
     num_opt_args = 0;
     int filtered_argc = 0;
     for(int iarg = 0; iarg < *argc; /*do nothing here*/)
     {
-        OptSpec const* spec = getspec(getarg(iarg));
+        ConfigActionSpec const* spec = getspec(getarg(iarg));
         if(!spec)
         {
             _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": no spec found");
@@ -485,18 +555,29 @@ size_t parse_opts(int *argc, char ***argv,
         _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": found spec: " << spec->optshort << "/" << spec->optlong);
         switch(spec->action)
         {
-        case Opt::load_file:
-        case Opt::load_dir:
-        case Opt::set_node:
+        case ConfigAction::load_file:
+        case ConfigAction::load_dir:
+        case ConfigAction::set_node:
         {
-            if(*argc < iarg + 2)
-                return argerror;
+            C4_ASSERT(check_next_arg(iarg));
             C4_ASSERT(opt_args && num_opt_args < opt_args_size);
             maybe_path_eq_yml parsed_spec(getarg(iarg + 1));
             opt_args[num_opt_args].action = spec->action;
             opt_args[num_opt_args].target = parsed_spec.tree_path;
             opt_args[num_opt_args].payload = parsed_spec.yml;
+            opt_args[num_opt_args].callback = spec->callback;
             iarg += 2;
+            break;
+        }
+        case ConfigAction::callback:
+        {
+            C4_ASSERT(opt_args && num_opt_args < opt_args_size);
+            opt_args[num_opt_args].action = spec->action;
+            opt_args[num_opt_args].target = {};
+            opt_args[num_opt_args].payload = {};
+            opt_args[num_opt_args].callback = spec->callback;
+            bool needs_arg = get_optional_arg(iarg, spec, &opt_args[num_opt_args].payload);
+            iarg += 1 + needs_arg;
             break;
         }
         default:
@@ -504,6 +585,7 @@ size_t parse_opts(int *argc, char ***argv,
         }
         ++num_opt_args;
     }
+    _dbg("require " << num_opt_args);
     for(int iarg = filtered_argc; iarg < *argc; ++iarg)
         (*argv)[iarg] = nullptr;
     *argc = filtered_argc;

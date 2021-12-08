@@ -12,7 +12,7 @@ namespace conf {
 
 void test_opts(std::vector<std::string> const& input_args,
                std::vector<std::string> const& filtered_args,
-               cspan<OptArg> expected_args,
+               cspan<ParsedOpt> expected_args,
                yml::Tree const& expected_tree);
 
 void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args);
@@ -39,10 +39,15 @@ key1:
     - key1val1val2
 )";
 
-const OptSpec specs_buf[] = {
-    {"-n", "--node", "set node value", {}, Opt::set_node},
-    {"-f", "--file", "load file"     , {}, Opt::load_file},
-    {"-d", "--dir" , "load dir"      , {}, Opt::load_dir},
+void action1(yml::Tree &t, csubstr) { t["key0"]["key0val0"][0].set_val("key0val0val0-action1"); }
+void action2(yml::Tree &t, csubstr) { t["key0"]["key0val0"][0].set_val("key0val0val0-action2"); }
+
+const ConfigActionSpec specs_buf[] = {
+    spec_for<ConfigAction::set_node>("-n", "--node"),
+    spec_for<ConfigAction::load_file>("-f", "--file"),
+    spec_for<ConfigAction::load_dir>("-d", "--dir"),
+    {ConfigAction::callback, action1, "-a1", "--action1", {}, "action 1"},
+    {ConfigAction::callback, action2, "-a2", "--action2", {}, "action 2"},
 };
 
 
@@ -60,7 +65,7 @@ TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
     to_args(expectedbuf, &expected);
     ASSERT_GT(originalbuf.size(), expectedbuf.size());
     size_t num_opts = 2u;
-    std::vector<OptArg> output;
+    std::vector<ParsedOpt> output;
     std::vector<char *> actual = original;
     int argc = (int)actual.size();
     char ** argv = actual.data();
@@ -89,7 +94,7 @@ TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
 
 TEST(opts, empty_is_ok)
 {
-    cspan<OptArg> expected_args = {};
+    cspan<ParsedOpt> expected_args = {};
     yml::Tree expected_tree = yml::parse(reftree);
     test_opts({"-a", "-b", "b0", "-c", "c0", "c1"},
               {"-a", "-b", "b0", "-c", "c0", "c1"},
@@ -100,10 +105,10 @@ TEST(opts, empty_is_ok)
 TEST(opts, set_node)
 {
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::set_node, "key1.key1val0[1]", "here it is"},
-        {Opt::set_node, "key1.key1val1", "now this is a scalar"},
-        {Opt::set_node, "key1.key1val0[1]", "here it is overrided"},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::set_node, "key1.key1val0[1]", "here it is", {}},
+        {ConfigAction::set_node, "key1.key1val1", "now this is a scalar", {}},
+        {ConfigAction::set_node, "key1.key1val0[1]", "here it is overrided", {}},
     };
     expected_tree["key1"]["key1val0"][1].set_val("here it is");
     expected_tree["key1"]["key1val1"].clear_children();
@@ -128,10 +133,10 @@ TEST(opts, set_node_with_nonscalars)
     csubstr k1k1v1 = "[more, items, like, this, are, appended]";
     csubstr k1k1v01 = "{Jacquesson: [741, 742], Gosset: Grande Reserve}";
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::set_node, "key1.key1val0[1]", k1k1v01_},
-        {Opt::set_node, "key1.key1val1", k1k1v1},
-        {Opt::set_node, "key1.key1val0[1]", k1k1v01},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::set_node, "key1.key1val0[1]", k1k1v01_, {}},
+        {ConfigAction::set_node, "key1.key1val1", k1k1v1, {}},
+        {ConfigAction::set_node, "key1.key1val0[1]", k1k1v01, {}},
     };
     expected_tree["key1"]["key1val0"][1].change_type(yml::MAP);
     expected_tree["key1"]["key1val0"][1]["nothing"] = "really";
@@ -211,9 +216,9 @@ TEST(opts, load_file)
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::load_file, {}, "somedir/file0"},
-        {Opt::load_file, {}, "somedir/file1"},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::load_file, {}, "somedir/file0", {}},
+        {ConfigAction::load_file, {}, "somedir/file1", {}},
     };
     setup.transform1(&expected_tree);
     test_opts({"-a", "-f", "somedir/file0", "-b", "b0", "--file", "somedir/file1", "-c", "c0", "c1"},
@@ -226,9 +231,9 @@ TEST(opts, load_file_to_node)
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::load_file, "key0", "somedir_to_node/file0"},
-        {Opt::load_file, "key1", "somedir_to_node/file1"},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::load_file, "key0", "somedir_to_node/file0", {}},
+        {ConfigAction::load_file, "key1", "somedir_to_node/file1", {}},
     };
     setup.transform1(&expected_tree);
     test_opts({"-a", "-f", "key0=somedir_to_node/file0", "-b", "b0", "--file", "key1=somedir_to_node/file1", "-c", "c0", "c1"},
@@ -241,8 +246,8 @@ TEST(opts, load_dir)
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::load_dir, {}, "somedir"},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::load_dir, {}, "somedir", {}},
     };
     setup.transform2(&expected_tree);
     test_opts({"-a", "-d", "somedir", "-b", "b0", "-c", "c0", "c1"},
@@ -255,9 +260,9 @@ TEST(opts, load_dir_to_node)
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
-    OptArg expected_args[] = {
-        {Opt::load_dir, "key0", "somedir_to_key0"},
-        {Opt::load_dir, "key1", "somedir_to_key1"},
+    ParsedOpt expected_args[] = {
+        {ConfigAction::load_dir, "key0", "somedir_to_key0", {}},
+        {ConfigAction::load_dir, "key1", "somedir_to_key1", {}},
     };
     setup.transform2(&expected_tree);
     test_opts({"-a", "-d", "key0=somedir_to_key0", "-b", "b0", "-d", "key1=somedir_to_key1", "-c", "c0", "c1"},
@@ -278,9 +283,9 @@ void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args
         (*args)[i] = (char *)&(stringvec[i][0]);
 }
 
-size_t parse_opts(int *argc, char ***argv, c4::span<OptArg> *opt_args)
+size_t parse_opts(int *argc, char ***argv, c4::span<ParsedOpt> *opt_args)
 {
-    cspan<OptSpec> specs = specs_buf;
+    cspan<ConfigActionSpec> specs = specs_buf;
     size_t required = parse_opts(argc, argv,
                                  specs.data(), specs.size(),
                                  opt_args ? opt_args->data() : nullptr, opt_args ? opt_args->size() : 0);
@@ -293,7 +298,7 @@ size_t parse_opts(int *argc, char ***argv, c4::span<OptArg> *opt_args)
 
 void test_opts(std::vector<std::string> const& input_args,
                std::vector<std::string> const& filtered_args,
-               cspan<OptArg> expected_args,
+               cspan<ParsedOpt> expected_args,
                yml::Tree const& expected_tree)
 {
     std::vector<char*> input_args_ptr, filtered_args_ptr, input_args_ptr_orig;
@@ -319,9 +324,9 @@ void test_opts(std::vector<std::string> const& input_args,
     check_input_args();
     // must deal with insufficient buffer size
     reset_args();
-    std::vector<OptArg> buf;
+    std::vector<ParsedOpt> buf;
     buf.resize(expected_args.size() / 2);
-    span<OptArg> buf_out = {buf.data(), buf.size()};
+    span<ParsedOpt> buf_out = {buf.data(), buf.size()};
     ret = parse_opts(&argc, &argv, &buf_out);
     ASSERT_NE(ret, argerror);
     EXPECT_EQ(ret, expected_args.size());
