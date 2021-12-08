@@ -315,8 +315,10 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
 {
     auto print = [&dump](csubstr value, size_t width=0) {
         dump(value);
-        if(!width) width = value.len;
-        for(size_t i = value.len; i < width; ++i) dump(" ");
+        if(!width)
+            width = value.len;
+        for(size_t i = value.len; i < width; ++i)
+            dump(" ");
         return width;
     };
     auto printdummy = [&dump](csubstr dummyname){
