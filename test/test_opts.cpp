@@ -73,17 +73,17 @@ size_t call_with_args(std::initializer_list<std::string> il)
 
 TEST(opts, missing_args_are_flagged)
 {
-    EXPECT_EQ(call_with_args({"-n"  /*missing*/}), argerror);
-    EXPECT_EQ(call_with_args({"-n"  /*missing*/, "-n", "notmissing"}), argerror);
-    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-n"  /*missing*/}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-n"  /*missing*/, "-n", "notmissing"}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n"  /*missing*/}), (size_t)argerror);
     EXPECT_EQ(call_with_args({"-n", "notmissing", "-n", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-f"  /*missing*/}), argerror);
-    EXPECT_EQ(call_with_args({"-f"  /*missing*/, "-f", "notmissing"}), argerror);
-    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-f"  /*missing*/}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-f"  /*missing*/, "-f", "notmissing"}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f"  /*missing*/}), (size_t)argerror);
     EXPECT_EQ(call_with_args({"-f", "notmissing", "-f", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-d"  /*missing*/}), argerror);
-    EXPECT_EQ(call_with_args({"-d"  /*missing*/, "-d", "notmissing"}), argerror);
-    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d"  /*missing*/}), argerror);
+    EXPECT_EQ(call_with_args({"-d"  /*missing*/}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-d"  /*missing*/, "-d", "notmissing"}), (size_t)argerror);
+    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d"  /*missing*/}), (size_t)argerror);
     EXPECT_EQ(call_with_args({"-d", "notmissing", "-d", "notmissing"}), 2u);
 }
 
@@ -119,7 +119,7 @@ TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
     ret = parse_opts(&argc, &argv,
                      specs_buf, C4_COUNTOF(specs_buf),
                      output.data(), output.size());
-    ASSERT_NE(ret, argerror);
+    ASSERT_NE(ret, (size_t)argerror);
     EXPECT_EQ(ret, num_opts);
     EXPECT_EQ((size_t)argc, actual.size());
     EXPECT_EQ(argv, actual.data());
@@ -365,7 +365,7 @@ void test_opts(std::vector<std::string> const& input_args,
     // must accept nullptr
     reset_args();
     size_t ret = parse_opts(&argc, &argv, nullptr);
-    ASSERT_NE(ret, argerror);
+    ASSERT_NE(ret, (size_t)argerror);
     EXPECT_EQ(ret, expected_args.size());
     check_input_args();
     // must deal with insufficient buffer size
@@ -374,7 +374,7 @@ void test_opts(std::vector<std::string> const& input_args,
     buf.resize(expected_args.size() / 2);
     span<ParsedOpt> buf_out = {buf.data(), buf.size()};
     ret = parse_opts(&argc, &argv, &buf_out);
-    ASSERT_NE(ret, argerror);
+    ASSERT_NE(ret, (size_t)argerror);
     EXPECT_EQ(ret, expected_args.size());
     EXPECT_EQ(argc, (int)input_args.size());
     EXPECT_EQ(buf_out.size(), buf.size());
@@ -385,7 +385,7 @@ void test_opts(std::vector<std::string> const& input_args,
     buf.resize(expected_args.size());
     buf_out = {buf.data(), buf.size()};
     ret = parse_opts(&argc, &argv, &buf_out);
-    ASSERT_NE(ret, argerror);
+    ASSERT_NE(ret, (size_t)argerror);
     EXPECT_EQ(ret, expected_args.size());
     EXPECT_EQ(argc, (int)filtered_args.size());
     EXPECT_EQ(buf_out.size(), expected_args.size());

@@ -117,65 +117,6 @@ jobs:
           #c4_submit_coverage static32 coveralls  # only accepts one submission per job
 
   #----------------------------------------------------------------------------
-  coverage_nofastfloat:
-    name: coverage/c++${{matrix.std}}/nofastfloat
-    # if: github.ref == 'refs/heads/master'
-    continue-on-error: true
-    if: always()  # https://stackoverflow.com/questions/62045967/github-actions-is-there-a-way-to-continue-on-error-while-still-getting-correct
-    runs-on: ${{matrix.os}}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {std: 11, cxx: g++-7, cc: gcc-7, bt: Coverage, os: ubuntu-18.04}
-          - {std: 14, cxx: g++-7, cc: gcc-7, bt: Coverage, os: ubuntu-18.04}
-          - {std: 17, cxx: g++-7, cc: gcc-7, bt: Coverage, os: ubuntu-18.04}
-    env: {
-      STD: "${{matrix.std}}",
-      CXX_: "${{matrix.cxx}}",
-      BT: "${{matrix.bt}}",
-      OS: "${{matrix.os}}",
-      CODECOV_TOKEN: "${{secrets.CODECOV_TOKEN}}",
-      COVERALLS_REPO_TOKEN: "${{secrets.COVERALLS_REPO_TOKEN}}",
-      BDIR:   "build/nofastfloat-${{matrix.cxx}}-cxx${{matrix.std}}",
-      IDIR: "install/nofastfloat-${{matrix.cxx}}-cxx${{matrix.std}}",
-    }
-    steps:
-      - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
-      - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
-      - {name: show info, run: source .github/setenv.sh && c4_show_info}
-      - name: nofastfloat-configure------------------------------------------------
-        run: |
-          set -x
-          mkdir -p $BDIR
-          mkdir -p $IDIR
-          cmake -S . -B $BDIR \
-            -DC4CONF_WITH_FASTFLOAT=OFF \
-            -DC4_CXX_STANDARD=${{matrix.std}} \
-            -DC4CONF_CXX_STANDARD=${{matrix.std}} \
-            -DC4CONF_BUILD_TESTS=ON \
-            -DC4CONF_VALGRIND=OFF \
-            -DC4CONF_COVERAGE_CODECOV=ON \
-            -DC4CONF_COVERAGE_CODECOV_SILENT=ON \
-            -DC4CONF_COVERAGE_COVERALLS=ON \
-            -DC4CONF_COVERAGE_COVERALLS_SILENT=ON \
-            -DCMAKE_INSTALL_PREFIX=$IDIR \
-            -DCMAKE_BUILD_TYPE=Coverage \
-            -DCMAKE_CXX_COMPILER=${{matrix.cxx}} \
-            -DCMAKE_C_COMPILER=${{matrix.cc}}
-      - name: nofastfloat-build
-        run: |
-          cmake --build $BDIR --config Coverage --target c4conf-test-build -j
-      - name: nofastfloat-run
-        run: |
-          cmake --build $BDIR --config Coverage --target c4conf-test-run
-      - name: nofastfloat-submit
-        run: |
-          cmake --build $BDIR --config Coverage --target c4conf-coverage-submit-codecov
-          #cmake --build $BDIR --config Coverage --target c4conf-coverage-submit-coveralls
-
-
-  #----------------------------------------------------------------------------
   windows:
     name: win/${{matrix.cxx}}/c++${{matrix.std}}/${{matrix.bt}}
     continue-on-error: true

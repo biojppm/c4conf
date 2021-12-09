@@ -453,11 +453,6 @@ void Workspace::apply_opts(ParsedOpt const* args_, size_t num_args)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-bool opt_expects_arg(csubstr dummyname)
-{
-    return (!dummyname.empty());
-}
-
 size_t parse_opts(int *argc, char ***argv,
                   ConfigActionSpec const* specs, size_t num_specs,
                   ParsedOpt *opt_args, size_t opt_args_size)
