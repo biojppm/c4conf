@@ -53,9 +53,9 @@ const ConfigActionSpec specs_buf[] = {
     spec_for<ConfigAction::set_node>("-n", "--node"),
     spec_for<ConfigAction::load_file>("-f", "--file"),
     spec_for<ConfigAction::load_dir>("-d", "--dir"),
-    {ConfigAction::callback, action1, "-a1", "--action1", {}, "action 1"},
-    {ConfigAction::callback, action2, "-a2", "--action2", {}, "action 2"},
-    {ConfigAction::callback, action2, "-o", "--optional", "[<optionalval>]", ""},
+    {ConfigAction::callback, action1, csubstr("-a1"), csubstr("--action1" ), csubstr{}                 , csubstr("action 1")},
+    {ConfigAction::callback, action2, csubstr("-a2"), csubstr("--action2" ), csubstr{}                 , csubstr("action 2")},
+    {ConfigAction::callback, action2, csubstr("-o" ), csubstr("--optional"), csubstr("[<optionalval>]"), csubstr{}},
 };
 
 
@@ -154,9 +154,9 @@ TEST_CASE("opts.set_node")
 {
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::set_node, "key1.key1val0[1]", "here it is", {}},
-        {ConfigAction::set_node, "key1.key1val1", "now this is a scalar", {}},
-        {ConfigAction::set_node, "key1.key1val0[1]", "here it is overrided", {}},
+        {ConfigAction::set_node, csubstr("key1.key1val0[1]"), csubstr("here it is"), {}},
+        {ConfigAction::set_node, csubstr("key1.key1val1"   ), csubstr("now this is a scalar"), {}},
+        {ConfigAction::set_node, csubstr("key1.key1val0[1]"), csubstr("here it is overrided"), {}},
     };
     expected_tree["key1"]["key1val0"][1].set_val("here it is");
     expected_tree["key1"]["key1val1"].clear_children();
@@ -182,9 +182,9 @@ TEST_CASE("opts.set_node_with_nonscalars")
     csubstr k1k1v01 = "{Jacquesson: [741, 742], Gosset: Grande Reserve}";
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::set_node, "key1.key1val0[1]", k1k1v01_, {}},
-        {ConfigAction::set_node, "key1.key1val1", k1k1v1, {}},
-        {ConfigAction::set_node, "key1.key1val0[1]", k1k1v01, {}},
+        {ConfigAction::set_node, csubstr("key1.key1val0[1]"), k1k1v01_, {}},
+        {ConfigAction::set_node, csubstr("key1.key1val1"), k1k1v1, {}},
+        {ConfigAction::set_node, csubstr("key1.key1val0[1]"), k1k1v01, {}},
     };
     expected_tree["key1"]["key1val0"][1].change_type(yml::MAP);
     expected_tree["key1"]["key1val0"][1]["nothing"] = "really";
@@ -271,8 +271,8 @@ TEST_CASE("opts.load_file")
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::load_file, {}, "somedir/file0", {}},
-        {ConfigAction::load_file, {}, "somedir/file1", {}},
+        {ConfigAction::load_file, {}, csubstr("somedir/file0"), {}},
+        {ConfigAction::load_file, {}, csubstr("somedir/file1"), {}},
     };
     setup.transform1(&expected_tree);
     test_opts({"-a", "-f", "somedir/file0", "-b", "b0", "--file", "somedir/file1", "-c", "c0", "c1"},
@@ -286,8 +286,8 @@ TEST_CASE("opts.load_file_to_node")
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::load_file, "key0", "somedir_to_node/file0", {}},
-        {ConfigAction::load_file, "key1", "somedir_to_node/file1", {}},
+        {ConfigAction::load_file, csubstr("key0"), csubstr("somedir_to_node/file0"), {}},
+        {ConfigAction::load_file, csubstr("key1"), csubstr("somedir_to_node/file1"), {}},
     };
     setup.transform1(&expected_tree);
     test_opts({"-a", "-f", "key0=somedir_to_node/file0", "-b", "b0", "--file", "key1=somedir_to_node/file1", "-c", "c0", "c1"},
@@ -301,7 +301,7 @@ TEST_CASE("opts.load_dir")
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::load_dir, {}, "somedir", {}},
+        {ConfigAction::load_dir, {}, csubstr("somedir"), {}},
     };
     setup.transform2(&expected_tree);
     test_opts({"-a", "-d", "somedir", "-b", "b0", "-c", "c0", "c1"},
@@ -315,8 +315,8 @@ TEST_CASE("opts.load_dir_to_node")
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
-        {ConfigAction::load_dir, "key0", "somedir_to_key0", {}},
-        {ConfigAction::load_dir, "key1", "somedir_to_key1", {}},
+        {ConfigAction::load_dir, csubstr("key0"), csubstr("somedir_to_key0"), {}},
+        {ConfigAction::load_dir, csubstr("key1"), csubstr("somedir_to_key1"), {}},
     };
     setup.transform2(&expected_tree);
     test_opts({"-a", "-d", "key0=somedir_to_key0", "-b", "b0", "-d", "key1=somedir_to_key1", "-c", "c0", "c1"},
