@@ -213,15 +213,15 @@ struct case1files
 {
     case1files()
     {
-        fs::mkdir("somedir");
+        C4_CHECK(fs::mkdir("somedir") == 0);
         fs::file_put_contents("somedir/file0", csubstr("{key0: {key0val0: now replaced as a scalar}}"));
         fs::file_put_contents("somedir/file2", csubstr("{key0: {key0val0: NOW replaced as a scalar v2}}"));
         fs::file_put_contents("somedir/file3", csubstr("{key1: {key1val0: THIS one too v2}}"));
         fs::file_put_contents("somedir/file1", csubstr("{key1: {key1val0: this one too}}"));
         // these are all equivalent:
-        fs::mkdir("somedir_to_node");
-        fs::mkdir("somedir_to_key0");
-        fs::mkdir("somedir_to_key1");
+        C4_CHECK(fs::mkdir("somedir_to_node") == 0);
+        C4_CHECK(fs::mkdir("somedir_to_key0") == 0);
+        C4_CHECK(fs::mkdir("somedir_to_key1") == 0);
         fs::file_put_contents("somedir_to_node/file0", csubstr("{key0val0: now replaced as a scalar}"));
         fs::file_put_contents("somedir_to_node/file2", csubstr("{key0val0: NOW replaced as a scalar v2}"));
         fs::file_put_contents("somedir_to_key0/file0", csubstr("{key0val0: now replaced as a scalar}"));

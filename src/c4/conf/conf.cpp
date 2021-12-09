@@ -116,10 +116,8 @@ void Workspace::_reserve_arena(size_t sz) const
 
 void Workspace::prepare_add_dir(csubstr tree_path, const char *dirname)
 {
-    if(tree_path.not_empty())
-        _dbg("preparing add directory: " << tree_path << "=" << dirname);
-    else
-        _dbg("preparing add directory to root: " << dirname);
+    if(tree_path.not_empty()) { _dbg("preparing add directory: " << tree_path << "=" << dirname); }
+    else { _dbg("preparing add directory to root: " << dirname); }
     C4_CHECK(!m_load_started);
     auto noop = [](fs::VisitedFile const&){ return 0; };
     // ensure the scratch has enough space for all the existing
@@ -151,10 +149,8 @@ void Workspace::prepare_add_dir(const char *dirname)
 
 void Workspace::prepare_add_file(csubstr tree_path, const char *filename)
 {
-    if(tree_path.not_empty())
-        _dbg("preparing add file: " << tree_path << "=" << filename);
-    else
-        _dbg("preparing add file to root: " << filename);
+    if(tree_path.not_empty()) { _dbg("preparing add file: " << tree_path << "=" << filename); }
+    else { _dbg("preparing add file to root: " << filename); }
     C4_CHECK(!m_load_started);
     _reserve_arena(tree_path.len + 2u + strlen(filename) + 2u + fs::file_size(filename));
 }
@@ -328,10 +324,8 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
 
 void Workspace::add_dir(csubstr tree_path, const char *dirname)
 {
-    if(tree_path.not_empty())
-        _dbg("adding directory: " << tree_path << "=" << dirname);
-    else
-        _dbg("adding directory to root: " << dirname);
+    if(tree_path.not_empty()) { _dbg("adding directory: " << tree_path << "=" << dirname); }
+    else { _dbg("adding directory to root: " << dirname); }
 
     m_dir_scratch.required_size = 256;
     bool ok;
@@ -365,10 +359,8 @@ void Workspace::add_dir(const char *dirname)
 
 void Workspace::add_file(csubstr tree_path, const char *filename_)
 {
-    if(tree_path.not_empty())
-        _dbg("adding file: " << tree_path << "=" << filename_);
-    else
-        _dbg("adding file to root: " << filename_);
+    if(tree_path.not_empty()) { _dbg("adding file: " << tree_path << "=" << filename_); }
+    else { _dbg("adding file to root: " << filename_); }
     _load_started();
     C4_CHECK(fs::is_file(filename_));
     // copy the file contents into the tree arena

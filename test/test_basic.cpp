@@ -252,8 +252,8 @@ TEST(files_and_confs, non_nested_vals)
 TEST(files_and_confs, map_and_seq)
 {
     auto t = c4::yml::parse("[0, 1, 2]");
-    ASSERT_EQ(t.size(), 4);
-    ASSERT_EQ(t.num_children(0u), 3);
+    ASSERT_EQ(t.size(), 4u);
+    ASSERT_EQ(t.num_children(0u), 3u);
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
         {"a=3", "a=4", "d=5", "d={e: 5}", "f=[0, 1, 2]"},
