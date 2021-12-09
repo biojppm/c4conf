@@ -1,7 +1,8 @@
 #include <c4/std/string.hpp>
 #include <c4/conf/conf.hpp>
 #include <c4/fs/fs.hpp>
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
 
 #include <initializer_list>
 #include <vector>
@@ -23,7 +24,7 @@ struct MultipleFiles
         for(c4::csubstr cont : contents)
         {
             std::string actual = c4::fs::file_get_contents<std::string>(m_files[i].name());
-            EXPECT_EQ(c4::to_csubstr(actual), cont) << "i=" << i;
+            CHECK_MESSAGE(c4::to_csubstr(actual) == cont, "i=", i);
             i++;
         }
     }
@@ -38,7 +39,7 @@ std::string emitstr(c4::yml::Tree const& tree)
 void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr expected_yml)
 {
     MultipleFiles mf(files);
-    ASSERT_EQ(mf.m_files.size(), files.size());
+    REQUIRE_EQ(mf.m_files.size(), files.size());
 
     c4::yml::Tree tree_result, tree_expected;
 
@@ -47,8 +48,8 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
         ws.prepare_add_file(file.name());
     for(c4::csubstr spec : confs)
         ws.prepare_add_conf(spec);
-    EXPECT_TRUE(tree_result.arena_capacity() > 0);
-    EXPECT_TRUE(tree_result.arena_size() == 0);
+    CHECK_GT(tree_result.arena_capacity(), 0u);
+    CHECK_EQ(tree_result.arena_size(), 0u);
 
     for(const auto &file : mf.m_files)
         ws.add_file(file.name());
@@ -59,7 +60,7 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
     std::string result = emitstr(tree_result);
     std::string expected = emitstr(tree_expected);
 
-    EXPECT_EQ(expected, result);
+    CHECK_EQ(expected, result);
 }
 
 
@@ -67,7 +68,7 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(basic, orthogonal_settings_do_not_interfere)
+TEST_CASE("basic.orthogonal_settings_do_not_interfere")
 {
     test_same(
         {"a: 0", "b: 1", "c: 2"},
@@ -76,7 +77,7 @@ TEST(basic, orthogonal_settings_do_not_interfere)
     );
 }
 
-TEST(basic, overriding_from_two_files)
+TEST_CASE("basic.overriding_from_two_files")
 {
     test_same(
         {"a: 0", "a: 1"},
@@ -85,7 +86,7 @@ TEST(basic, overriding_from_two_files)
     );
 }
 
-TEST(basic, overriding_from_three_files)
+TEST_CASE("basic.overriding_from_three_files")
 {
     test_same(
         {"a: 0", "a: 1", "a: 2"},
@@ -94,7 +95,7 @@ TEST(basic, overriding_from_three_files)
     );
 }
 
-TEST(basic, overriding_from_four_files)
+TEST_CASE("basic.overriding_from_four_files")
 {
     test_same(
         {"a: 0", "a: 1", "a: 2", "a: 3"},
@@ -103,7 +104,7 @@ TEST(basic, overriding_from_four_files)
     );
 }
 
-TEST(basic, orthogonal_and_overriding_from_four_files)
+TEST_CASE("basic.orthogonal_and_overriding_from_four_files")
 {
     test_same(
         {"a: 0", "b: 1", "a: 2", "b: 3"},
@@ -117,7 +118,7 @@ TEST(basic, orthogonal_and_overriding_from_four_files)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(overriding_val, with_val)
+TEST_CASE("overriding_val.with_val")
 {
     test_same(
         {"a: 0", "a: 1", "a: 2", "a: foo"},
@@ -126,7 +127,7 @@ TEST(overriding_val, with_val)
     );
 }
 
-TEST(overriding_val, with_map)
+TEST_CASE("overriding_val.with_map")
 {
     test_same(
         {"a: 0", "a: 1", "a: 2", "a: {foo: bar}"},
@@ -135,7 +136,7 @@ TEST(overriding_val, with_map)
     );
 }
 
-TEST(overriding_val, with_seq)
+TEST_CASE("overriding_val.with_seq")
 {
     test_same(
         {"a: 0", "a: 1", "a: 2", "a: [foo, bar]"},
@@ -149,7 +150,7 @@ TEST(overriding_val, with_seq)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(overriding_map, with_val)
+TEST_CASE("overriding_map.with_val")
 {
     test_same(
         {"a: 0", "a: 1", "a: {foo: bar}", "a: not"},
@@ -158,7 +159,7 @@ TEST(overriding_map, with_val)
     );
 }
 
-TEST(overriding_map, with_map_merging)
+TEST_CASE("overriding_map.with_map_merging")
 {
     test_same(
         {"a: 0", "a: 1", "a: {foo: bar}", "a: {bar: foo}"},
@@ -167,7 +168,7 @@ TEST(overriding_map, with_map_merging)
     );
 }
 
-TEST(overriding_map, with_map_replacing)
+TEST_CASE("overriding_map.with_map_replacing")
 {
     test_same(
         {"a: 0", "a: 1", "a: {foo: bar}", "a: ~", "a: {bar: foo}"},
@@ -176,7 +177,7 @@ TEST(overriding_map, with_map_replacing)
     );
 }
 
-TEST(overriding_map, with_seq)
+TEST_CASE("overriding_map.with_seq")
 {
     test_same(
         {"a: 0", "a: 1", "a: {foo: bar}", "a: [foo, bar]"},
@@ -190,7 +191,7 @@ TEST(overriding_map, with_seq)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(overriding_seq, with_val)
+TEST_CASE("overriding_seq.with_val")
 {
     test_same(
         {"a: 0", "a: 1", "a: [foo, bar]", "a: not"},
@@ -199,7 +200,7 @@ TEST(overriding_seq, with_val)
     );
 }
 
-TEST(overriding_seq, with_map)
+TEST_CASE("overriding_seq.with_map")
 {
     test_same(
         {"a: 0", "a: 1", "a: [foo, bar]", "a: {bar: foo}"},
@@ -208,7 +209,7 @@ TEST(overriding_seq, with_map)
     );
 }
 
-TEST(overriding_seq, with_seq_merging)
+TEST_CASE("overriding_seq.with_seq_merging")
 {
     test_same(
         {"a: 0", "a: 1", "a: [foo, bar]", "a: [bar, foo]"},
@@ -217,7 +218,7 @@ TEST(overriding_seq, with_seq_merging)
     );
 }
 
-TEST(overriding_seq, with_seq_replacing)
+TEST_CASE("overriding_seq.with_seq_replacing")
 {
     test_same(
         {"a: 0", "a: 1", "a: [foo, bar]", "a: ~", "a: [bar, foo]"},
@@ -231,7 +232,7 @@ TEST(overriding_seq, with_seq_replacing)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(files_and_confs, baseline)
+TEST_CASE("files_and_confs.baseline")
 {
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
@@ -240,7 +241,7 @@ TEST(files_and_confs, baseline)
     );
 }
 
-TEST(files_and_confs, non_nested_vals)
+TEST_CASE("files_and_confs.non_nested_vals")
 {
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
@@ -249,11 +250,11 @@ TEST(files_and_confs, non_nested_vals)
     );
 }
 
-TEST(files_and_confs, map_and_seq)
+TEST_CASE("files_and_confs.map_and_seq")
 {
     auto t = c4::yml::parse("[0, 1, 2]");
-    ASSERT_EQ(t.size(), 4u);
-    ASSERT_EQ(t.num_children(0u), 3u);
+    REQUIRE_EQ(t.size(), 4u);
+    REQUIRE_EQ(t.num_children(0u), 3u);
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
         {"a=3", "a=4", "d=5", "d={e: 5}", "f=[0, 1, 2]"},
@@ -266,7 +267,7 @@ TEST(files_and_confs, map_and_seq)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(nested_map_lookup, override_with_val)
+TEST_CASE("nested_map_lookup.override_with_val")
 {
     test_same(
         {"d: {e: 4, f: {g: 5}}"},
@@ -275,7 +276,7 @@ TEST(nested_map_lookup, override_with_val)
     );
 }
 
-TEST(nested_map_lookup, override_with_map)
+TEST_CASE("nested_map_lookup.override_with_map")
 {
     test_same(
         {"d: {e: 4, f: {g: 5}}"},
@@ -284,7 +285,7 @@ TEST(nested_map_lookup, override_with_map)
     );
 }
 
-TEST(nested_map_lookup, override_with_map_twice)
+TEST_CASE("nested_map_lookup.override_with_map_twice")
 {
     test_same(
         {"d: {e: 4, f: {g: 5}}"},
@@ -295,7 +296,7 @@ TEST(nested_map_lookup, override_with_map_twice)
     );
 }
 
-TEST(nested_map_lookup, override_with_map_twice_then_val)
+TEST_CASE("nested_map_lookup.override_with_map_twice_then_val")
 {
     test_same(
         {"d: {e: 4, f: {g: 5}}"},
@@ -313,7 +314,7 @@ TEST(nested_map_lookup, override_with_map_twice_then_val)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(nested_seq_lookup, override_val_with_val)
+TEST_CASE("nested_seq_lookup.override_val_with_val")
 {
     test_same(
         {"{seqs: [[[000, 001, 002], [010, 011, 012]], [[100, 101, 102], [110, 111, 112]], [[200, 201, 202], [210, 211, 212]]]}"},
@@ -322,7 +323,7 @@ TEST(nested_seq_lookup, override_val_with_val)
     );
 }
 
-TEST(nested_seq_lookup, override_seq_with_val)
+TEST_CASE("nested_seq_lookup.override_seq_with_val")
 {
     test_same(
         {"{seqs: [[[000, 001, 002], [010, 011, 012]], [[100, 101, 102], [110, 111, 112]], [[200, 201, 202], [210, 211, 212]]]}"},
@@ -335,7 +336,7 @@ TEST(nested_seq_lookup, override_seq_with_val)
     );
 }
 
-TEST(nested_seq_lookup, override_all_with_val)
+TEST_CASE("nested_seq_lookup.override_all_with_val")
 {
     test_same(
         {"{seqs: [[[000, 001, 002], [010, 011, 012]], [[100, 101, 102], [110, 111, 112]], [[200, 201, 202], [210, 211, 212]]]}"},
@@ -353,7 +354,7 @@ TEST(nested_seq_lookup, override_all_with_val)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(nested_mixed_lookup, override_val_with_val)
+TEST_CASE("nested_mixed_lookup.override_val_with_val")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -365,7 +366,7 @@ TEST(nested_mixed_lookup, override_val_with_val)
     );
 }
 
-TEST(nested_mixed_lookup, override_val_with_seq)
+TEST_CASE("nested_mixed_lookup.override_val_with_seq")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -377,7 +378,7 @@ TEST(nested_mixed_lookup, override_val_with_seq)
     );
 }
 
-TEST(nested_mixed_lookup, override_val_with_map)
+TEST_CASE("nested_mixed_lookup.override_val_with_map")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -391,7 +392,7 @@ TEST(nested_mixed_lookup, override_val_with_map)
 
 //-----------------------------------------------------------------------------
 
-TEST(nested_mixed_lookup, override_seq_with_val)
+TEST_CASE("nested_mixed_lookup.override_seq_with_val")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -400,7 +401,7 @@ TEST(nested_mixed_lookup, override_seq_with_val)
     );
 }
 
-TEST(nested_mixed_lookup, override_seq_with_val_twice)
+TEST_CASE("nested_mixed_lookup.override_seq_with_val_twice")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -409,7 +410,7 @@ TEST(nested_mixed_lookup, override_seq_with_val_twice)
     );
 }
 
-TEST(nested_mixed_lookup, override_seq_with_seq)
+TEST_CASE("nested_mixed_lookup.override_seq_with_seq")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -418,7 +419,7 @@ TEST(nested_mixed_lookup, override_seq_with_seq)
     );
 }
 
-TEST(nested_mixed_lookup, override_seq_with_seq_twice)
+TEST_CASE("nested_mixed_lookup.override_seq_with_seq_twice")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -433,7 +434,7 @@ TEST(nested_mixed_lookup, override_seq_with_seq_twice)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(nested_mixed_lookup, create_seqs)
+TEST_CASE("nested_mixed_lookup.create_seqs")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -446,7 +447,7 @@ TEST(nested_mixed_lookup, create_seqs)
     );
 }
 
-TEST(nested_mixed_lookup, create_seq_entries)
+TEST_CASE("nested_mixed_lookup.create_seq_entries")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
@@ -458,7 +459,7 @@ TEST(nested_mixed_lookup, create_seq_entries)
     );
 }
 
-TEST(nested_mixed_lookup, create_maps)
+TEST_CASE("nested_mixed_lookup.create_maps")
 {
     test_same(
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},

@@ -2,7 +2,8 @@
 #include <c4/conf/conf.hpp>
 #include <c4/fs/fs.hpp>
 #include <c4/span.hpp>
-#include <gtest/gtest.h>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
 
 #include <vector>
 #include <string>
@@ -71,29 +72,29 @@ size_t call_with_args(std::initializer_list<std::string> il)
     return parse_opts(&argc, &argv, specs_buf, C4_COUNTOF(specs_buf), nullptr, 0);
 }
 
-TEST(opts, missing_args_are_flagged)
+TEST_CASE("opts.missing_args_are_flagged")
 {
-    EXPECT_EQ(call_with_args({"-n"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-n"  /*missing*/, "-n", "notmissing"}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-n", "notmissing", "-n", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-f"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-f"  /*missing*/, "-f", "notmissing"}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-f", "notmissing", "-f", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-d"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-d"  /*missing*/, "-d", "notmissing"}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d"  /*missing*/}), (size_t)argerror);
-    EXPECT_EQ(call_with_args({"-d", "notmissing", "-d", "notmissing"}), 2u);
+    CHECK_EQ(call_with_args({"-n"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-n"  /*missing*/, "-n", "notmissing"}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-n", "notmissing", "-n"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-n", "notmissing", "-n", "notmissing"}), 2u);
+    CHECK_EQ(call_with_args({"-f"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-f"  /*missing*/, "-f", "notmissing"}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-f", "notmissing", "-f"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-f", "notmissing", "-f", "notmissing"}), 2u);
+    CHECK_EQ(call_with_args({"-d"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-d"  /*missing*/, "-d", "notmissing"}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-d", "notmissing", "-d"  /*missing*/}), (size_t)argerror);
+    CHECK_EQ(call_with_args({"-d", "notmissing", "-d", "notmissing"}), 2u);
 }
 
-TEST(opts, optional_args_are_not_mandatory)
+TEST_CASE("opts.optional_args_are_not_mandatory")
 {
-    EXPECT_EQ(call_with_args({"-o"  /*missing*/}), 1u);
-    EXPECT_EQ(call_with_args({"-o"  /*missing*/, "-o", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-o", "notmissing", "-o"  /*missing*/}), 2u);
-    EXPECT_EQ(call_with_args({"-o", "notmissing", "-o", "notmissing"}), 2u);
-    EXPECT_EQ(call_with_args({"-o"  /*missing*/, "-o"   /*missing*/}), 2u);
+    CHECK_EQ(call_with_args({"-o"  /*missing*/}), 1u);
+    CHECK_EQ(call_with_args({"-o"  /*missing*/, "-o", "notmissing"}), 2u);
+    CHECK_EQ(call_with_args({"-o", "notmissing", "-o"  /*missing*/}), 2u);
+    CHECK_EQ(call_with_args({"-o", "notmissing", "-o", "notmissing"}), 2u);
+    CHECK_EQ(call_with_args({"-o"  /*missing*/, "-o"   /*missing*/}), 2u);
 }
 
 
@@ -101,7 +102,7 @@ TEST(opts, optional_args_are_not_mandatory)
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
+TEST_CASE("opts.args_are_not_changed_when_given_insufficient_output_buffer")
 {
     std::vector<std::string> originalbuf = {"-n", "key0=val0", "-b", "b0", "-n", "key1=val1", "-c", "c0", "c1"};
     std::vector<std::string> expectedbuf = {                   "-b", "b0",                    "-c", "c0", "c1"};
@@ -109,7 +110,7 @@ TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
     std::vector<char *> expected;
     to_args(originalbuf, &original);
     to_args(expectedbuf, &expected);
-    ASSERT_GT(originalbuf.size(), expectedbuf.size());
+    REQUIRE_GT(originalbuf.size(), expectedbuf.size());
     size_t num_opts = 2u;
     std::vector<ParsedOpt> output;
     std::vector<char *> actual = original;
@@ -119,26 +120,26 @@ TEST(opts, args_are_not_changed_when_given_insufficient_output_buffer)
     ret = parse_opts(&argc, &argv,
                      specs_buf, C4_COUNTOF(specs_buf),
                      output.data(), output.size());
-    ASSERT_NE(ret, (size_t)argerror);
-    EXPECT_EQ(ret, num_opts);
-    EXPECT_EQ((size_t)argc, actual.size());
-    EXPECT_EQ(argv, actual.data());
-    EXPECT_EQ(actual, original);
+    REQUIRE_NE(ret, (size_t)argerror);
+    CHECK_EQ(ret, num_opts);
+    CHECK_EQ((size_t)argc, actual.size());
+    CHECK_EQ(argv, actual.data());
+    CHECK_EQ(actual, original);
     output.resize(ret);
     ret = parse_opts(&argc, &argv,
                      specs_buf, C4_COUNTOF(specs_buf),
                      output.data(), output.size());
-    EXPECT_EQ(ret, num_opts);
-    EXPECT_EQ((size_t)argc, expected.size());
+    CHECK_EQ(ret, num_opts);
+    CHECK_EQ((size_t)argc, expected.size());
     actual.resize((size_t)argc);
-    EXPECT_EQ(*argv, original[2]); // the first non-filtered option
+    CHECK_EQ(*argv, original[2]); // the first non-filtered option
     for(size_t i = 0; i < (size_t)argc; ++i)
     {
-        EXPECT_STREQ(actual[i], expected[i]) << "i=" << i;
+        CHECK_MESSAGE(to_csubstr(actual[i]) == to_csubstr(expected[i]), "i=", i);
     }
 }
 
-TEST(opts, empty_is_ok)
+TEST_CASE("opts.empty_is_ok")
 {
     cspan<ParsedOpt> expected_args = {};
     yml::Tree expected_tree = yml::parse(reftree);
@@ -148,7 +149,7 @@ TEST(opts, empty_is_ok)
               expected_tree);
 }
 
-TEST(opts, set_node)
+TEST_CASE("opts.set_node")
 {
     yml::Tree expected_tree = yml::parse(reftree);
     ParsedOpt expected_args[] = {
@@ -173,7 +174,7 @@ TEST(opts, set_node)
               expected_tree);
 }
 
-TEST(opts, set_node_with_nonscalars)
+TEST_CASE("opts.set_node_with_nonscalars")
 {
     csubstr k1k1v01_ = "{nothing: really, actually: something}";
     csubstr k1k1v1 = "[more, items, like, this, are, appended]";
@@ -213,15 +214,20 @@ struct case1files
 {
     case1files()
     {
-        C4_CHECK(fs::mkdir("somedir") == 0);
+        auto mkdir = [](const char *d){
+            if(fs::dir_exists(d))
+                fs::rmtree(d);
+            C4_CHECK(fs::mkdir(d) == 0);
+        };
+        mkdir("somedir");
+        mkdir("somedir_to_node");
+        mkdir("somedir_to_key0");
+        mkdir("somedir_to_key1");
         fs::file_put_contents("somedir/file0", csubstr("{key0: {key0val0: now replaced as a scalar}}"));
         fs::file_put_contents("somedir/file2", csubstr("{key0: {key0val0: NOW replaced as a scalar v2}}"));
         fs::file_put_contents("somedir/file3", csubstr("{key1: {key1val0: THIS one too v2}}"));
         fs::file_put_contents("somedir/file1", csubstr("{key1: {key1val0: this one too}}"));
         // these are all equivalent:
-        C4_CHECK(fs::mkdir("somedir_to_node") == 0);
-        C4_CHECK(fs::mkdir("somedir_to_key0") == 0);
-        C4_CHECK(fs::mkdir("somedir_to_key1") == 0);
         fs::file_put_contents("somedir_to_node/file0", csubstr("{key0val0: now replaced as a scalar}"));
         fs::file_put_contents("somedir_to_node/file2", csubstr("{key0val0: NOW replaced as a scalar v2}"));
         fs::file_put_contents("somedir_to_key0/file0", csubstr("{key0val0: now replaced as a scalar}"));
@@ -258,7 +264,7 @@ struct case1files
     }
 };
 
-TEST(opts, load_file)
+TEST_CASE("opts.load_file")
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
@@ -273,7 +279,7 @@ TEST(opts, load_file)
               expected_tree);
 }
 
-TEST(opts, load_file_to_node)
+TEST_CASE("opts.load_file_to_node")
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
@@ -288,7 +294,7 @@ TEST(opts, load_file_to_node)
               expected_tree);
 }
 
-TEST(opts, load_dir)
+TEST_CASE("opts.load_dir")
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
@@ -302,7 +308,7 @@ TEST(opts, load_dir)
               expected_tree);
 }
 
-TEST(opts, load_dir_to_node)
+TEST_CASE("opts.load_dir_to_node")
 {
     case1files setup;
     yml::Tree expected_tree = yml::parse(reftree);
@@ -358,15 +364,15 @@ void test_opts(std::vector<std::string> const& input_args,
         input_args_ptr_orig = input_args_ptr;
     };
     auto check_input_args = [&]{
-        EXPECT_EQ(argc, (int)input_args.size());
+        CHECK_EQ(argc, (int)input_args.size());
         for(int iarg = 0; iarg < argc; ++iarg)
-            EXPECT_STREQ(input_args_ptr[(size_t)iarg], input_args_ptr_orig[(size_t)iarg]) << "i=" << iarg;
+            CHECK_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(input_args_ptr_orig[(size_t)iarg]));
     };
     // must accept nullptr
     reset_args();
     size_t ret = parse_opts(&argc, &argv, nullptr);
-    ASSERT_NE(ret, (size_t)argerror);
-    EXPECT_EQ(ret, expected_args.size());
+    REQUIRE_NE(ret, (size_t)argerror);
+    CHECK_EQ(ret, expected_args.size());
     check_input_args();
     // must deal with insufficient buffer size
     reset_args();
@@ -374,29 +380,29 @@ void test_opts(std::vector<std::string> const& input_args,
     buf.resize(expected_args.size() / 2);
     span<ParsedOpt> buf_out = {buf.data(), buf.size()};
     ret = parse_opts(&argc, &argv, &buf_out);
-    ASSERT_NE(ret, (size_t)argerror);
-    EXPECT_EQ(ret, expected_args.size());
-    EXPECT_EQ(argc, (int)input_args.size());
-    EXPECT_EQ(buf_out.size(), buf.size());
-    EXPECT_EQ(buf_out.data(), buf.data());
+    REQUIRE_NE(ret, (size_t)argerror);
+    CHECK_EQ(ret, expected_args.size());
+    CHECK_EQ(argc, (int)input_args.size());
+    CHECK_EQ(buf_out.size(), buf.size());
+    CHECK_EQ(buf_out.data(), buf.data());
     check_input_args();
     // must deal with sufficient buffer size
     reset_args();
     buf.resize(expected_args.size());
     buf_out = {buf.data(), buf.size()};
     ret = parse_opts(&argc, &argv, &buf_out);
-    ASSERT_NE(ret, (size_t)argerror);
-    EXPECT_EQ(ret, expected_args.size());
-    EXPECT_EQ(argc, (int)filtered_args.size());
-    EXPECT_EQ(buf_out.size(), expected_args.size());
-    EXPECT_EQ(buf_out.data(), buf.data());
+    REQUIRE_NE(ret, (size_t)argerror);
+    CHECK_EQ(ret, expected_args.size());
+    CHECK_EQ(argc, (int)filtered_args.size());
+    CHECK_EQ(buf_out.size(), expected_args.size());
+    CHECK_EQ(buf_out.data(), buf.data());
     for(int iarg = 0; iarg < argc; ++iarg)
-        EXPECT_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(filtered_args_ptr[(size_t)iarg])) << iarg;
+        CHECK_MESSAGE(to_csubstr(input_args_ptr[(size_t)iarg]) == to_csubstr(filtered_args_ptr[(size_t)iarg]), iarg);
     for(size_t iarg = 0; iarg < expected_args.size(); ++iarg)
     {
-        EXPECT_EQ(buf_out[iarg].action, expected_args[iarg].action) << iarg;
-        EXPECT_EQ(buf_out[iarg].target, expected_args[iarg].target) << iarg;
-        EXPECT_EQ(buf_out[iarg].payload, expected_args[iarg].payload) << iarg;
+        CHECK_MESSAGE(buf_out[iarg].action == expected_args[iarg].action, iarg);
+        CHECK_MESSAGE(buf_out[iarg].target == expected_args[iarg].target, iarg);
+        CHECK_MESSAGE(buf_out[iarg].payload == expected_args[iarg].payload, iarg);
     }
     //
     if(expected_args.size())
@@ -404,7 +410,7 @@ void test_opts(std::vector<std::string> const& input_args,
         yml::Tree output = yml::parse(reftree);
         Workspace ws(&output);
         ws.apply_opts(buf_out.data(), buf_out.size());
-        EXPECT_EQ(yml::emitrs<std::string>(output), yml::emitrs<std::string>(expected_tree));
+        CHECK_EQ(yml::emitrs<std::string>(output), yml::emitrs<std::string>(expected_tree));
     }
 }
 
