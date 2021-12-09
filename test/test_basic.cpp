@@ -23,8 +23,9 @@ struct MultipleFiles
         size_t i = 0;
         for(c4::csubstr cont : contents)
         {
+            INFO("i=", i);
             std::string actual = c4::fs::file_get_contents<std::string>(m_files[i].name());
-            CHECK_MESSAGE(c4::to_csubstr(actual) == cont, "i=", i);
+            CHECK_EQ(c4::to_csubstr(actual), cont);
             i++;
         }
     }

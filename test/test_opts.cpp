@@ -135,7 +135,8 @@ TEST_CASE("opts.args_are_not_changed_when_given_insufficient_output_buffer")
     CHECK_EQ(*argv, original[2]); // the first non-filtered option
     for(size_t i = 0; i < (size_t)argc; ++i)
     {
-        CHECK_MESSAGE(to_csubstr(actual[i]) == to_csubstr(expected[i]), "i=", i);
+        INFO("i=", i);
+        CHECK_EQ(to_csubstr(actual[i]), to_csubstr(expected[i]));
     }
 }
 
@@ -398,12 +399,16 @@ void test_opts(std::vector<std::string> const& input_args,
     CHECK_EQ(buf_out.size(), expected_args.size());
     CHECK_EQ(buf_out.data(), buf.data());
     for(int iarg = 0; iarg < argc; ++iarg)
-        CHECK_MESSAGE(to_csubstr(input_args_ptr[(size_t)iarg]) == to_csubstr(filtered_args_ptr[(size_t)iarg]), iarg);
+    {
+        INFO("iarg=", iarg);
+        CHECK_EQ(to_csubstr(input_args_ptr[(size_t)iarg]), to_csubstr(filtered_args_ptr[(size_t)iarg]));
+    }
     for(size_t iarg = 0; iarg < expected_args.size(); ++iarg)
     {
-        CHECK_MESSAGE(buf_out[iarg].action == expected_args[iarg].action, iarg);
-        CHECK_MESSAGE(buf_out[iarg].target == expected_args[iarg].target, iarg);
-        CHECK_MESSAGE(buf_out[iarg].payload == expected_args[iarg].payload, iarg);
+        INFO("iarg=", iarg);
+        CHECK_EQ(buf_out[iarg].action, expected_args[iarg].action);
+        CHECK_EQ(buf_out[iarg].target, expected_args[iarg].target);
+        CHECK_EQ(buf_out[iarg].payload, expected_args[iarg].payload);
     }
     //
     if(expected_args.size())
