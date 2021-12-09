@@ -216,7 +216,8 @@ struct case1files
     {
         auto mkdir = [](const char *d){
             if(fs::dir_exists(d))
-                fs::rmtree(d);
+                C4_CHECK(fs::rmtree(d) == 0);
+            C4_CHECK(!fs::dir_exists(d));
             C4_CHECK(fs::mkdir(d) == 0);
         };
         mkdir("somedir");
@@ -239,10 +240,10 @@ struct case1files
     }
     ~case1files()
     {
-        fs::rmtree("somedir");
-        fs::rmtree("somedir_to_node");
-        fs::rmtree("somedir_to_key0");
-        fs::rmtree("somedir_to_key1");
+        C4_CHECK(fs::rmtree("somedir") == 0);
+        C4_CHECK(fs::rmtree("somedir_to_node") == 0);
+        C4_CHECK(fs::rmtree("somedir_to_key0") == 0);
+        C4_CHECK(fs::rmtree("somedir_to_key1") == 0);
     }
     void transform1(yml::Tree *tree)
     {
