@@ -178,15 +178,15 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::set_node>(cs
         optshort,
         optlong,
         // argument
-        "[<targetpath>=]<validyaml>",
+        csubstr("[<targetpath>=]<validyaml>"), // csubstr is needed by gcc5
         // help
-        "Load explicit YAML code into a target config node. "
+        csubstr("Load explicit YAML code into a target config node. "
         "<targetpath> is optional, and defaults to the root level; "
         "ie, when <targetpath> is omitted, then the YAML tree "
         "resulting from parsing <validyaml> is merged starting at "
         "the config tree's root node. "
         "Otherwise the tree from <validyaml> is merged starting at "
-        "the config tree's node at <targetpath>.",
+        "the config tree's node at <targetpath>.")
     };
 }
 /** A helper to create the load_file action specification */
@@ -198,15 +198,15 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_file>(c
         optshort,
         optlong,
         // argument
-        "[<targetpath>=]<filename>",
+        csubstr("[<targetpath>=]<filename>"), // csubstr is needed by gcc5
         // help
-        "Load a YAML file and merge into a target config node. "
+        csubstr("Load a YAML file and merge into a target config node. "
         "<targetpath> is optional, and defaults to the root level; "
         "ie, when <targetpath> is omitted, then the YAML tree "
         "resulting from parsing <validyaml> is merged starting at "
         "the config tree's root node. "
         "Otherwise the tree from <validyaml> is merged starting at "
-        "the config tree's node at <targetpath>.",
+        "the config tree's node at <targetpath>.")
     };
 }
 /** A helper to create the load_dir action specification */
@@ -218,9 +218,9 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_dir>(cs
         optshort,
         optlong,
         // argument
-        "[<targetpath>=]<directory>",
+        csubstr("[<targetpath>=]<directory>"),
         // help
-        "Consecutively load all files in a directory as YAML into a target config node. "
+        csubstr("Consecutively load all files in a directory as YAML into a target config node. "
         "All files are visited even if their extension is neither of .yml or .yaml. "
         "Files are visited in alphabetical order. "
         "<targetpath> is optional, and defaults to the root level; "
@@ -228,7 +228,7 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_dir>(cs
         "resulting from parsing <validyaml> is merged starting at "
         "the config tree's root node. "
         "Otherwise the tree from <validyaml> is merged starting at "
-        "the config tree's node at <targetpath>.",
+        "the config tree's node at <targetpath>."),
     };
 }
 
