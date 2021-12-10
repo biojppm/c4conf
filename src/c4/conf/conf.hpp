@@ -313,13 +313,15 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
                              ConfigActionSpec const *specs, size_t num_specs,
                              csubstr section_title={}, size_t linewidth=70)
 {
-    auto print = [&dump](csubstr value, size_t width=0) {
+    auto print = [&dump](csubstr value) {
         dump(value);
-        if(!width)
-            width = value.len;
+        return value.len;
+    };
+    auto printw = [&dump](csubstr value, size_t width) {
+        dump(value);
         for(size_t i = value.len; i < width; ++i)
             dump(" ");
-        return width;
+        return width > value.len ? width : value.len;
     };
     auto printdummy = [&dump](csubstr dummyname){
         size_t len = 0;
@@ -363,7 +365,7 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
         }
         if(pos < break_pos - 2)
         {
-            pos += print(" ", break_pos - pos);
+            pos += printw(" ", break_pos - pos);
         }
         else
         {
@@ -380,7 +382,7 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
             else
             {
                 print("\n");
-                pos = print(" ", break_pos);
+                pos = printw(" ", break_pos);
             }
         }
         pos += print("\n");

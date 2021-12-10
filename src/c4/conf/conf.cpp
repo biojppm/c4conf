@@ -464,7 +464,7 @@ size_t parse_opts(int *argc, char ***argv,
             return false;
         return true;
     };
-    auto get_optional_arg = [&](int iarg, ConfigActionSpec const* spec, csubstr *optional_arg=nullptr) -> bool {
+    auto get_optional_arg = [&](int iarg, ConfigActionSpec const* spec, csubstr *optional_arg) -> bool {
         if(spec->accepts_optional_arg())
         {
             if(*argc < iarg + 2)
@@ -509,7 +509,7 @@ size_t parse_opts(int *argc, char ***argv,
             break;
         case ConfigAction::callback:
         {
-            if(get_optional_arg(iarg, spec))
+            if(get_optional_arg(iarg, spec, nullptr))
                 ++iarg;
             break;
         }
