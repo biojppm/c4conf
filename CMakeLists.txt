@@ -11,13 +11,9 @@ c4_require_subproject(c4core SUBDIRECTORY ${C4CONF_EXT_DIR}/c4core)
 c4_require_subproject(c4fs   SUBDIRECTORY ${C4CONF_EXT_DIR}/c4fs)
 c4_require_subproject(ryml   SUBDIRECTORY ${C4CONF_EXT_DIR}/rapidyaml)
 
-set(C4CONF_SRC
-    ${C4CONF_SRC_DIR}/c4/conf/conf.hpp
-    ${C4CONF_SRC_DIR}/c4/conf/conf.cpp
-    )
-
 c4_add_library(c4conf
-    SOURCES ${C4CONF_SRC}
+    SOURCES c4/conf/conf.hpp c4/conf/conf.cpp c4/conf/export.hpp
+    SOURCE_ROOT ${C4CONF_SRC_DIR}
     LIBS c4fs ryml c4core
     INC_DIRS
         $<BUILD_INTERFACE:${C4CONF_SRC_DIR}> $<INSTALL_INTERFACE:include>
