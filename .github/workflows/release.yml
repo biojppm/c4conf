@@ -19,7 +19,7 @@ on:
       - master
   pull_request:
     branches:
-    - master
+      - master
 
 env:
   PROJ_PKG_NAME: c4conf-
@@ -59,7 +59,7 @@ jobs:
           branch_name=`echo $branch_name | sed "s:refs/pull/\([0-9]*\)/\(.*\):pr0\1_\2:"`
           # sanitize the branch name; eg merge/foo-bar -> merge_foo_bar
           branch_name=`echo $branch_name | sed 's:[/.-]:_:g'`
-          SRC_TAG=$(git describe)  # eg v0.2.0-110-gda837e0
+          SRC_TAG=$(git describe || git rev-parse --short HEAD)  # eg v0.2.0-110-gda837e0
           SRC_VERSION="${branch_name}-${SRC_TAG}"
           cat <<EOF > vars.sh
           export SRC_TAG=$SRC_TAG
@@ -111,7 +111,8 @@ jobs:
       matrix:
         config:
           #  name of the artifact    | suffix (gen)    | suffix (package)         | cpack gen | mime type                      | os              | cxx
-          - {name: Ubuntu 20.04 deb  , sfxg: unix64-shared-Release.deb, sfxp: ubuntu-20.04.deb   , gen: DEB  , mime: vnd.debian.binary-package, os: ubuntu-20.04             }
+          # ubuntu 20.04 is disabled because of a problem installing libc++:i386:
+          #- {name: Ubuntu 20.04 deb  , sfxg: unix64-shared-Release.deb, sfxp: ubuntu-20.04.deb   , gen: DEB  , mime: vnd.debian.binary-package, os: ubuntu-20.04             }
           - {name: Ubuntu 18.04 deb  , sfxg: unix64-shared-Release.deb, sfxp: ubuntu-18.04.deb   , gen: DEB  , mime: vnd.debian.binary-package, os: ubuntu-18.04             }
           - {name: Windows VS2019 zip, sfxg: win64-shared-Release.zip , sfxp: windows-vs2019.zip , gen: ZIP  , mime: zip                      , os: windows-2019, cxx: vs2019}
           - {name: MacOSX sh         , sfxg: apple64-shared-Release.sh, sfxp: macosx-xcode.sh    , gen: STGZ , mime: x-sh                     , os: macos-11.0  , cxx: xcode }
@@ -139,7 +140,6 @@ jobs:
       - name: Save artifacts
         uses: actions/upload-artifact@v1
         with: {name: assets, path: assets}
-
 
   #----------------------------------------------------------------------------
   release:
