@@ -21,7 +21,7 @@ c4_add_library(c4conf
 
 c4_install_target(c4conf)
 c4_install_exports()
-c4_pack_project()
 
 c4_add_dev_targets()
 
+c4_pack_project(TYPE LIBRARY)
