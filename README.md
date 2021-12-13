@@ -1,6 +1,6 @@
 # c4conf
 
-c4conf is a C++ library enabling use of a YAML tree as a program's configuration, using [rapidyaml](https://github.com/biojppm/rapidyaml). It leverages YAML's rich data grammer to simplify loading and successively overriding configurations:
+c4conf is a C++ library enabling use of a YAML tree as a program's configuration, using [rapidyaml](https://github.com/biojppm/rapidyaml). It leverages YAML's rich data grammar to simplify loading and successively overriding configurations:
   - from explicit YAML configurations (eg, `root.mapnode.seqnode[1]=[seq,of,values]`)
   - from YAML files, with optional target node, defaulting to the root node
   - from directories (ie, walk through YAML files in the directory), also with optional target node

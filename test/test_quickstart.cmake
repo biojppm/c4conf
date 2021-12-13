@@ -378,3 +378,6 @@ bar:
 baz: definitely"
 -cn bar.bar2=~
     )
+
+add_test(NAME c4conf-test-quickstart-help
+    COMMAND "$<TARGET_FILE:c4conf-test-quickstart>" --help)
