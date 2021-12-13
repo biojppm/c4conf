@@ -150,10 +150,10 @@ Given these default settings:
                  {"-cn", "bar='{these: will, be: appended}'"}) << R"(
 
 )"; show_example("# remove all elements in a seq, replace with different elements",
-                 {"-cn", "foo=~", "-cn", "foo=[all,new]"}) << R"(
+                 {"-cn", "'foo=~'", "-cn", "foo=[all,new]"}) << R"(
 
 )"; show_example("# remove all elements in a map, replace with different elements",
-                 {"-cn", "bar=~", "-cn", "bar='{all: new}'"}) << R"(
+                 {"-cn", "'bar=~'", "-cn", "bar='{all: new}'"}) << R"(
 
 )"; show_example("# replace a seq with a different type, eg val",
                  {"-cn", "foo=newfoo"}) << R"(
@@ -167,8 +167,11 @@ Given these default settings:
 )"; show_example("# add new nodes, eg map",
                  {"-cn", "wine='{green: summer, red: winter, champagne: year-round}'"}) << R"(
 
-)"; show_example("# add new nested nodes",
+)"; show_example("# add new nested nodes to a seq",
                  {"-cn", "foo[3]=[a,b,c]"}) << R"(
+
+)"; show_example("# add new nested nodes to a map",
+                 {"-cn", "bar.possibly=[d,e,f]"}) << R"(
 
 )"; show_example("# In seqs, target node indices do not need to be contiguous.\n"
                  "# This will add a new seq nested in foo, and\n"
@@ -198,7 +201,13 @@ Given these default settings:
 )"; show_example("# call setbar2(), with omitted arg",
                  {"-sb2"}) << R"(
 )"; show_example("# this is equivalent to the previous example",
-                 {"-cn", "bar.bar2=~"}) << R"(
+                 {"-cn", "'bar.bar2=~'"}) << R"(
+
+# Notice above that tilde `~` (which in YAML is understood as the null
+# value) is escaped with quotes when it is part of an argument. This is
+# needed to prevent the shell from replacing `~` with the user's home
+# dir before the executable is called.
+
 )";
 }
 
