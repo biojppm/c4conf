@@ -4,7 +4,7 @@ project(c4conf
     DESCRIPTION "YAML configuration loading and merging from multiple files"
     HOMEPAGE_URL "https://github.com/biojppm/c4conf"
     LANGUAGES CXX)
-c4_project(VERSION 0.0.1
+c4_project(VERSION 0.1.0
     AUTHOR "Joao Paulo Magalhaes <dev@jpmag.me>")
 
 c4_require_subproject(c4core SUBDIRECTORY ${C4CONF_EXT_DIR}/c4core)
