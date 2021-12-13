@@ -10,4 +10,6 @@ endfunction()
 
 c4conf_test(basic test_basic.cpp)
 c4conf_test(opts test_opts.cpp)
-include(./test_quickstart.cmake)
+if(NOT CMAKE_CROSSCOMPILING)
+    include(./test_quickstart.cmake)
+endif()

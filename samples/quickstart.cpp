@@ -1,6 +1,11 @@
+#include "c4/error.hpp"
 #include <c4/conf/conf.hpp>
 #include <vector>
+#include <string>
 #include <iostream>
+
+C4_SUPPRESS_WARNING_GCC_WITH_PUSH("-Wuseless-cast")
+C4_SUPPRESS_WARNING_MSVC_WITH_PUSH(4702) // unreachable code
 
 using namespace c4::conf;
 
@@ -28,13 +33,15 @@ void setbar2(Tree &tree, csubstr bar2val);
 // create the specs for the command line options to be handled by
 // c4conf. These options will transform the config tree:
 constexpr const ConfigActionSpec conf_specs[] = {
-    spec_for<ConfigAction::set_node> ("-cn", "--conf-node"),
-    spec_for<ConfigAction::load_file>("-cf", "--conf-file"),
-    spec_for<ConfigAction::load_dir> ("-cd", "--conf-dir"),
-    {ConfigAction::callback, &setfoo , "-sf" , "--set-foo"     , {}           , "call setfoo()"     },
-    {ConfigAction::callback, &setbar , "-sb" , "--set-bar"     , {}           , "call setbar()"     },
-    {ConfigAction::callback, &setfoo3, "-sf3", "--set-foo3-val", "<foo3val>"  , "call setfoo3() with a required arg"},
-    {ConfigAction::callback, &setbar2, "-sb2", "--set-bar2-val", "[<bar2val>]", "call setbar2() with an optional arg"},
+    // using an explicit csubstr() is required by GCC5, but not with
+    // later versions, which will pick the proper csubstr constructor.
+    spec_for<ConfigAction::set_node> (csubstr("-cn"), csubstr("--conf-node")),
+    spec_for<ConfigAction::load_file>(csubstr("-cf"), csubstr("--conf-file")),
+    spec_for<ConfigAction::load_dir> (csubstr("-cd"), csubstr("--conf-dir")),
+    {ConfigAction::callback, &setfoo , csubstr("-sf" ), csubstr("--set-foo"     ), csubstr({}           ), csubstr("call setfoo()") },
+    {ConfigAction::callback, &setbar , csubstr("-sb" ), csubstr("--set-bar"     ), csubstr({}           ), csubstr("call setbar()") },
+    {ConfigAction::callback, &setfoo3, csubstr("-sf3"), csubstr("--set-foo3-val"), csubstr("<foo3val>"  ), csubstr("call setfoo3() with a required arg)")},
+    {ConfigAction::callback, &setbar2, csubstr("-sb2"), csubstr("--set-bar2-val"), csubstr("[<bar2val>]"), csubstr("call setbar2() with an optional arg)")},
 };
 
 c4::yml::Tree makeconf(int *argc, char ***argv)
@@ -99,16 +106,16 @@ void show_help(const char *exename)
     print_help(dump, conf_specs, C4_COUNTOF(conf_specs), "conf options");
     // Now we show several usage examples together
     // with the resulting output:
+    constexpr const char fg_white[] = "\033[97m";
+    constexpr const char fg_dark_gray[] = "\033[90m";
+    constexpr const char fg_reset[] = "\033[0m";
+    constexpr const char st_bold[] = "\033[1m";
+    constexpr const char st_bold_reset[] = "\033[21m";
+    constexpr const char bg_reset[] = "\033[49m";
+    constexpr const char bg_black[] = "\033[40m";
     std::vector<char*> argvbuf;
     csubstr basename = csubstr{exename, strlen(exename)}.basename();
     auto show_example = [&](const char *desc, std::vector<std::string> args) -> std::ostream& {
-        constexpr const char fg_white[] = "\033[97m";
-        constexpr const char fg_dark_gray[] = "\033[90m";
-        constexpr const char fg_reset[] = "\033[0m";
-        constexpr const char st_bold[] = "\033[1m";
-        constexpr const char st_bold_reset[] = "\033[21m";
-        constexpr const char bg_reset[] = "\033[49m";
-        constexpr const char bg_black[] = "\033[40m";
         // create argc/argv
         argvbuf.resize(args.size());
         for(size_t i = 0; i < args.size(); ++i) argvbuf[i] = &args[i][0];
@@ -259,3 +266,6 @@ void setbar2(Tree &tree, csubstr bar2val)
     ensure_bar(tree);
     tree["bar"]["bar2"] = bar2val;
 }
+
+C4_SUPPRESS_WARNING_GCC_POP
+C4_SUPPRESS_WARNING_MSVC_POP
