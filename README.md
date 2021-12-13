@@ -1,4 +1,12 @@
 # c4conf
+[![MIT Licensed](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/biojppm/c4conf/blob/master/LICENSE.txt)
+[![release](https://img.shields.io/github/v/release/biojppm/c4conf?color=g&include_prereleases&label=release%20&sort=semver)](https://github.com/biojppm/c4conf/releases)
+
+[![test](https://github.com/biojppm/c4conf/workflows/test/badge.svg?branch=master)](https://github.com/biojppm/c4conf/actions)
+[![Coveralls](https://coveralls.io/repos/github/biojppm/c4conf/badge.svg?branch=master)](https://coveralls.io/github/biojppm/c4conf)
+[![Codecov](https://codecov.io/gh/biojppm/c4conf/branch/master/graph/badge.svg?branch=master)](https://codecov.io/gh/biojppm/c4conf)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/biojppm/c4conf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/biojppm/c4conf/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/biojppm/c4conf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/biojppm/c4conf/context:cpp)
 
 c4conf is a C++ library enabling use of a YAML tree as a program's configuration, using [rapidyaml](https://github.com/biojppm/rapidyaml). It leverages YAML's rich data grammar to simplify loading and successively overriding configurations:
   - from explicit YAML configurations (eg, `root.mapnode.seqnode[1]=[seq,of,values]`)
@@ -9,7 +17,7 @@ c4conf can be used with regular function calls from your code, or through a thin
 
 After c4conf finishes with the configuration tree, you can visit the tree and read its values using any of the deserialization mechanisms available in [rapidyaml](https://github.com/biojppm/rapidyaml). See the [rapidyaml documentation here](https://rapidyaml.docsforge.com/), in particular the [rapidyaml quickstart](https://rapidyaml.docsforge.com/master/getting-started/#quick-start).
 
-c4conf follows the same design principles of [rapidyaml](https://github.com/biojppm/rapidyaml) (low latency, full control of allocations and error behaviors, no dependency on the STL), and is extensively tested in the same compilers/platforms where [rapidyaml](https://github.com/biojppm/rapidyaml) is tested.
+c4conf follows the same design principles of [rapidyaml](https://github.com/biojppm/rapidyaml) (low latency, full control of allocations and error behaviors, no dependency on the STL). It is written in C++11, and is extensively tested in the same compilers/platforms where [rapidyaml](https://github.com/biojppm/rapidyaml) is tested.
 
 
 ### Sample code
@@ -57,7 +65,7 @@ conf options
 
 ### Usage examples
 
-And now, some examples with this executable. Given these default settings:
+Here are some examples with this executable. Given these default settings:
 
 ```yaml
 foo:
