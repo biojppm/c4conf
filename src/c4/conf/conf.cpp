@@ -4,7 +4,7 @@
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
-#ifdef NDEBUG
+#if 1 || defined(NDEBUG)
 #define _pr(...)
 #define _dbg(...)
 #else
@@ -478,12 +478,20 @@ size_t parse_opts(int *argc, char ***argv,
         }
         else
         {
-            C4_ASSERT(*argc >= iarg + 2);
-            csubstr next_arg = getarg(iarg + 1);
-            C4_ASSERT(!next_arg.begins_with('-'));
-            _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": expected arg: " << next_arg);
-            if(optional_arg)
-                *optional_arg = next_arg;
+            if(spec->dummyname.empty())
+            {
+                C4_ASSERT(*argc >= iarg + 1);
+                _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": no arg expected");
+            }
+            else
+            {
+                C4_ASSERT(*argc >= iarg + 2);
+                csubstr next_arg = getarg(iarg + 1);
+                C4_ASSERT(!next_arg.begins_with('-'));
+                _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": expected arg: " << next_arg);
+                if(optional_arg)
+                    *optional_arg = next_arg;
+            }
         }
         return true;
     };

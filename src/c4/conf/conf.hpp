@@ -370,7 +370,7 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
         else
         {
             print("\n");
-            pos = print(" ", break_pos);
+            pos = printw(" ", break_pos);
         }
         for(csubstr word : spec->help.split(' '))
         {
