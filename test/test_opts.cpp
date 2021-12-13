@@ -175,6 +175,48 @@ TEST_CASE("opts.set_node")
               expected_tree);
 }
 
+TEST_CASE("opts.add_node_to_seq")
+{
+    yml::Tree expected_tree = yml::parse(reftree);
+    ParsedOpt expected_args[] = {
+        {ConfigAction::set_node, csubstr("key1.key1val0[5]"), csubstr("here you go with a new one"), {}},
+    };
+    expected_tree["key1"]["key1val0"].append_child().set_val({}); // 3
+    expected_tree["key1"]["key1val0"].append_child().set_val({}); // 4
+    expected_tree["key1"]["key1val0"].append_child().set_val("here you go with a new one");
+    // quotes in the value
+    test_opts({"-a", "-n", "key1.key1val0[5]='here you go with a new one'", "-b", "b0"},
+              {"-a",                                                        "-b", "b0"},
+              expected_args,
+              expected_tree);
+    // quotes in the arg
+    test_opts({"-a", "-n", "'key1.key1val0[5]=here you go with a new one'", "-b", "b0"},
+              {"-a",                                                        "-b", "b0"},
+              expected_args,
+              expected_tree);
+}
+
+TEST_CASE("opts.add_node_to_map")
+{
+    yml::Tree expected_tree = yml::parse(reftree);
+    ParsedOpt expected_args[] = {
+        {ConfigAction::set_node, csubstr("key1.key1val2"), csubstr("here you go with a new one"), {}},
+    };
+    expected_tree["key1"]["key1val2"] = "here you go with a new one";
+    // quotes in the value
+    test_opts({"-a", "-n", "key1.key1val2='here you go with a new one'", "-b", "b0"},
+              {"-a",                                                     "-b", "b0"},
+              expected_args,
+              expected_tree);
+    // quotes in the arg
+    test_opts({"-a", "-n", "'key1.key1val2=here you go with a new one'", "-b", "b0"},
+              {"-a",                                                     "-b", "b0"},
+              expected_args,
+              expected_tree);
+}
+
+
+
 TEST_CASE("opts.set_node_with_nonscalars")
 {
     csubstr k1k1v01_ = "{nothing: really, actually: something}";

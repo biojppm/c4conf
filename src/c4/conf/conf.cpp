@@ -283,7 +283,17 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
             else
             {
                 csubstr res = result.resolved();
-                csubstr rem = res.empty() ? _get_root_key(result.unresolved()) : _get_leaf_key(res);
+                _dbg("res='" << res << "'");
+                csubstr rem;
+                if(res.empty()) // do not use the ternary operator to expose potential coverage misses
+                {
+                    //C4_ERROR("crl");
+                    rem = _get_root_key(result.unresolved());
+                }
+                else
+                {
+                    rem = _get_leaf_key(result.unresolved());
+                }
                 _dbg("key='" << dst_path << "' rem='" << rem << "'");
                 size_t keyconf_node = _setup_yml_as_keyval(rem, conf_yml);
                 m_output->lookup_path_or_modify(m_ws, keyconf_node, dst_path);
