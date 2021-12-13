@@ -69,6 +69,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -142,6 +143,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -184,6 +186,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -226,6 +229,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -266,6 +270,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -311,6 +316,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -367,6 +373,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -419,6 +426,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -472,6 +480,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: shared64-configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test shared64
@@ -514,6 +523,7 @@ jobs:
     steps:
       - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
       - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
       - {name: show info, run: source .github/setenv.sh && c4_show_info}
       - name: configure---------------------------------------------------
         run: source .github/setenv.sh && c4_cfg_test arm
@@ -544,6 +554,7 @@ jobs:
 #    steps:
 #      - {name: checkout, uses: actions/checkout@v2, with: {submodules: recursive}}
 #      - {name: install requirements, run: source .github/reqs.sh && c4_install_test_requirements $OS}
+#      - {name: install python 3.9, uses: actions/setup-python@v2, with: { python-version: 3.9 } }
 #      - {name: show info, run: source .github/setenv.sh && c4_show_info}
 #      - name: shared64-configure---------------------------------------------------
 #        run: source .github/setenv.sh && c4_cfg_test shared64
