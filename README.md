@@ -356,7 +356,7 @@ foo:
 bar:
   bar0: indeed0
   bar1: indeed1
-  bar2: "'the value'"
+  bar2: the value
 baz: definitely
 
 # this is equivalent to the previous example:
