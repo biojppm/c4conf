@@ -167,10 +167,14 @@ struct ConfigActionSpec
     bool accepts_optional_arg() const { return expects_arg() && dummyname.begins_with('[') && dummyname.ends_with(']'); };
 };
 
-
-template<ConfigAction action> constexpr ConfigActionSpec spec_for(csubstr optshort, csubstr optlong={});
+template<ConfigAction action> constexpr ConfigActionSpec spec_for(csubstr optshort, csubstr optlong={}) noexcept;
+/** A helper to create the callback action specification */
+inline constexpr ConfigActionSpec spec_for(pfn_callback callback, csubstr optshort, csubstr optlong={}, csubstr arg={}, csubstr help={}) noexcept
+{
+    return {ConfigAction::callback, callback, optshort, optlong, arg, help};
+}
 /** A helper to create the set_node action specification */
-template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::set_node>(csubstr optshort, csubstr optlong)
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::set_node>(csubstr optshort, csubstr optlong) noexcept
 {
     return {
         ConfigAction::set_node,
@@ -190,7 +194,7 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::set_node>(cs
     };
 }
 /** A helper to create the load_file action specification */
-template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_file>(csubstr optshort, csubstr optlong)
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_file>(csubstr optshort, csubstr optlong) noexcept
 {
     return {
         ConfigAction::load_file,
@@ -210,7 +214,7 @@ template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_file>(c
     };
 }
 /** A helper to create the load_dir action specification */
-template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_dir>(csubstr optshort, csubstr optlong)
+template<> inline constexpr ConfigActionSpec spec_for<ConfigAction::load_dir>(csubstr optshort, csubstr optlong) noexcept
 {
     return {
         ConfigAction::load_dir,
@@ -275,7 +279,9 @@ size_t parse_opts(int *argc, char ***argv,
 
 /** Parse command line options into the given container. Works as (1),
  * except it receives an output container, which will be resized as
- * needed to accomodate the passed arguments.
+ * needed to accomodate the passed arguments. The container should be
+ * a linear container offering .data(), .size() and .resize() methods:
+ * eg, a std::vector<ParsedOpt>.
  *
  * @return false if there was an error parsing the arguments */
 template<class ParsedOptContainer>
@@ -294,6 +300,19 @@ bool parse_opts(int *argc, char ***argv,
         C4_CHECK(ret == parsed_opts->size());
     }
     return true;
+}
+
+
+/** Parse command line options, and return a newly created container
+ * of with the result.  Calls C4_ERROR() if the arguments fail to
+ * parse. */
+template<class ParsedOptContainer>
+ParsedOptContainer parse_opts(int *argc, char ***argv, ConfigActionSpec const* specs, size_t num_specs)
+{
+    ParsedOptContainer container;
+    if(!parse_opts(argc, argv, specs, num_specs, &container))
+        C4_ERROR("failed to parse args");
+    return container;
 }
 
 /** @} */

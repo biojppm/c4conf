@@ -1,4 +1,3 @@
-#include "c4/error.hpp"
 #include <c4/conf/conf.hpp>
 #include <vector>
 #include <string>
@@ -35,32 +34,36 @@ void setbar2(Tree &tree, csubstr bar2val);
 constexpr const ConfigActionSpec conf_specs[] = {
     // using an explicit csubstr() is required by GCC5, but not with
     // later versions, which will pick the proper csubstr constructor.
-    spec_for<ConfigAction::set_node> (csubstr("-cn"), csubstr("--conf-node")),
-    spec_for<ConfigAction::load_file>(csubstr("-cf"), csubstr("--conf-file")),
-    spec_for<ConfigAction::load_dir> (csubstr("-cd"), csubstr("--conf-dir")),
-    {ConfigAction::callback, &setfoo , csubstr("-sf" ), csubstr("--set-foo"     ), csubstr({}           ), csubstr("call setfoo()") },
-    {ConfigAction::callback, &setbar , csubstr("-sb" ), csubstr("--set-bar"     ), csubstr({}           ), csubstr("call setbar()") },
-    {ConfigAction::callback, &setfoo3, csubstr("-sf3"), csubstr("--set-foo3-val"), csubstr("<foo3val>"  ), csubstr("call setfoo3() with a required arg)")},
-    {ConfigAction::callback, &setbar2, csubstr("-sb2"), csubstr("--set-bar2-val"), csubstr("[<bar2val>]"), csubstr("call setbar2() with an optional arg)")},
+    spec_for<ConfigAction::set_node> (csubstr("-cn" ), csubstr("--conf-node"   )),
+    spec_for<ConfigAction::load_file>(csubstr("-cf" ), csubstr("--conf-file"   )),
+    spec_for<ConfigAction::load_dir> (csubstr("-cd" ), csubstr("--conf-dir"    )),
+    spec_for(&setfoo ,                csubstr("-sf" ), csubstr("--set-foo"     ), csubstr({}           ), csubstr("call setfoo()")),
+    spec_for(&setbar ,                csubstr("-sb" ), csubstr("--set-bar"     ), csubstr({}           ), csubstr("call setbar()")),
+    spec_for(&setfoo3,                csubstr("-sf3"), csubstr("--set-foo3-val"), csubstr("<foo3val>"  ), csubstr("call setfoo3() with a required arg)")),
+    spec_for(&setbar2,                csubstr("-sb2"), csubstr("--set-bar2-val"), csubstr("[<bar2val>]"), csubstr("call setbar2() with an optional arg)")),
 };
 
+// Load settings, and override them with any command-line arguments.
+// The arguments registered above are filtered out of the input, and
+// any other arguments will remain.
 c4::yml::Tree makeconf(int *argc, char ***argv)
 {
     // This is our config tree; fill it with the defaults.
-    c4::yml::Tree tree;
-    c4::yml::parse("(defaults)", default_settings, &tree);
-    std::vector<ParsedOpt> cfg_args;
-    // parse the input options (argc, argv), filtering out config
-    // options, and gathering them into the temporary above.
-    // Any options not listed in conf_specs are ignored and will
-    // not cause any error here. After parsing into cfg_args,
-    // you can also do validation, but we skip that in this sample.
-    if(!c4::conf::parse_opts(argc, argv, conf_specs, C4_COUNTOF(conf_specs), &cfg_args))
-        C4_ERROR("error parsing arguments");
-    // now apply the config options onto the defaults tree.
-    // All options are handled in the order given by the user.
+    c4::yml::Tree tree = c4::yml::parse("(defaults)", default_settings);
+    // Parse the input args, filtering out the config options
+    // registered above, and gathering them into the returned
+    // container. Any options not listed in conf_specs are ignored and
+    // will remain in (argc, argv). Note that this overload creating a
+    // vector of ParsedOpt is chosen for brevity; you can use a
+    // lower-level overload writing into a memory span.
+    auto configs = parse_opts<std::vector<ParsedOpt>>(argc, argv, conf_specs, C4_COUNTOF(conf_specs));
+    // After successfully parsing, you should also do validation, but
+    // we skip that step in this sample.
+    //
+    // Now apply the config options onto the defaults tree.  All
+    // options are handled in the order given by the user.
     c4::conf::Workspace workspace(&tree);
-    workspace.apply_opts(cfg_args);
+    workspace.apply_opts(configs);
     return tree;
 }
 
@@ -73,7 +76,7 @@ int main(int argc, char **argv)
     // and argv. If there are further arguments to be parsed by the
     // application, this is the occasion to do it. In this example, we
     // only have --help, and raise an error on any other argument. To
-    // be clear, --help could be handled by parse_opts(), and we
+    // be clear, --help could be handled by parse_opts(), but we
     // choose to deal with it here instead to show that c4conf does
     // not take over the options of your program.
     for(auto *arg = argv + 1; arg < argv + argc; ++arg)
@@ -90,12 +93,61 @@ int main(int argc, char **argv)
             return (int)(arg - argv);
         }
     }
-    // now you can deserialize the config tree
+    // Now you can deserialize the config tree
     // into your program's native data structures.
     // Since this is an example, we stop here and just
     // dump the tree to the output:
     std::cout << tree;
     return 0;
+}
+
+
+//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Because of the nature of this example, a prior config option given
+// by the user may have changed foo/bar to a different type
+// incompatible with the actions below. So these ensure that it has
+// the proper structure:
+void ensure_foo(Tree &tree)
+{
+    if(!tree["foo"].is_seq() || tree["foo"].num_children() < 4)
+        C4_ERROR("cannot setfoo()");
+}
+void ensure_bar(Tree &tree)
+{
+    if(!tree["bar"].is_map() || tree["bar"].num_children() < 3)
+        C4_ERROR("cannot setbar()");
+}
+
+void setfoo(Tree &tree, csubstr)
+{
+    ensure_foo(tree);
+    tree["foo"][2] = "foo2, actually footoo";
+    tree["foo"][3].change_type(c4::yml::SEQ);
+    tree["foo"][3][0] = "foo3elm0";
+    tree["foo"][3][1] = "foo3elm1";
+    tree["foo"][3][2] = "foo3elm2";
+}
+
+void setbar(Tree &tree, csubstr)
+{
+    ensure_bar(tree);
+    tree["bar"]["add more"] = "one";
+    tree["bar"]["add more again"] = "two";
+    tree["baz"] = "definitely maybe";
+}
+
+void setfoo3(Tree &tree, csubstr foo3val)
+{
+    ensure_foo(tree);
+    tree["foo"][3] = foo3val;
+}
+
+void setbar2(Tree &tree, csubstr bar2val)
+{
+    ensure_bar(tree);
+    tree["bar"]["bar2"] = bar2val;
 }
 
 
@@ -210,61 +262,12 @@ Given these default settings:
 )"; show_example("# this is equivalent to the previous example",
                  {"-cn", "'bar.bar2=~'"}) << R"(
 
-# Notice above that tilde `~` (which in YAML is understood as the null
+# Notice above that the tilde `~` (which in YAML is understood as the null
 # value) is escaped with quotes when it is part of an argument. This is
 # needed to prevent the shell from replacing `~` with the user's home
 # dir before the executable is called.
 
 )";
-}
-
-
-//-----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// Because of the nature of this example, a prior config option given
-// by the user may have changed foo/bar to a different type
-// incompatible with the actions below. So these ensure that it has
-// the proper structure:
-void ensure_foo(Tree &tree)
-{
-    if(!tree["foo"].is_seq() || tree["foo"].num_children() < 4)
-        C4_ERROR("cannot setfoo()");
-}
-void ensure_bar(Tree &tree)
-{
-    if(!tree["bar"].is_map() || tree["bar"].num_children() < 3)
-        C4_ERROR("cannot setbar()");
-}
-
-void setfoo(Tree &tree, csubstr)
-{
-    ensure_foo(tree);
-    tree["foo"][2] = "foo2, actually footoo";
-    tree["foo"][3].change_type(c4::yml::SEQ);
-    tree["foo"][3][0] = "foo3elm0";
-    tree["foo"][3][1] = "foo3elm1";
-    tree["foo"][3][2] = "foo3elm2";
-}
-
-void setbar(Tree &tree, csubstr)
-{
-    ensure_bar(tree);
-    tree["bar"]["add more"] = "one";
-    tree["bar"]["add more again"] = "two";
-    tree["baz"] = "definitely maybe";
-}
-
-void setfoo3(Tree &tree, csubstr foo3val)
-{
-    ensure_foo(tree);
-    tree["foo"][3] = foo3val;
-}
-
-void setbar2(Tree &tree, csubstr bar2val)
-{
-    ensure_bar(tree);
-    tree["bar"]["bar2"] = bar2val;
 }
 
 C4_SUPPRESS_WARNING_GCC_POP

@@ -13,18 +13,121 @@ c4conf is a C++ library offering use of a YAML tree as a program's configuration
   - from YAML files, optionally targetting a nested node
   - from directories (ie, walk through YAML files in the directory), also with optional target node.
 
-c4conf can be used with regular function calls from your code, or through a thin abstraction layer on top of these offering full customizable command line argument parsing with convenient high-level entry points.
+c4conf can be used with regular function calls from your code, or through fully customizable command line arguments, provided with parsing facilities.
 
 After c4conf finishes with the configuration tree, you can visit the tree and read its values using any of the deserialization mechanisms available in [rapidyaml](https://github.com/biojppm/rapidyaml). See the [rapidyaml documentation here](https://rapidyaml.docsforge.com/), in particular the [rapidyaml quickstart](https://rapidyaml.docsforge.com/master/getting-started/#quick-start).
 
 c4conf follows the same design principles of [rapidyaml](https://github.com/biojppm/rapidyaml) (low latency, low number of allocations, full control of allocations and error behaviors, no dependency on the STL). It is written in C++11, and is extensively tested in the same compilers/platforms where [rapidyaml](https://github.com/biojppm/rapidyaml) is tested.
 
+### Quickstart
+(See the complete [quickstart code here](samples/quickstart.cpp), should be enough to get going). This example has a default config tree, which is changed based on the command line arguments and then simply printed to stdout:
+```c++
+#include <c4/conf/conf.hpp>
+#include <iostream>
 
-### Sample code
-A read through [the sample code](samples/quickstart.cpp) should be enough to get going. This executable has a default config tree, which is changed based on the command line arguments and then simply printed to stdout. Calling it with `--help`:
+using namespace c4::conf;
 
+// these are settings used to fill the default config tree of this example:
+const char default_settings[] = R"(
+foo:
+  - foo0
+  - foo1
+  - foo2
+  - foo3
+bar:
+  bar0: indeed0
+  bar1: indeed1
+  bar2: indeed2
+baz: definitely
+)";
+
+// some custom actions for command line switches
+void setfoo(Tree &tree, csubstr);
+void setbar(Tree &tree, csubstr);
+void setfoo3(Tree &tree, csubstr foo3val);
+void setbar2(Tree &tree, csubstr bar2val);
+void show_help(const char *exename);
+
+// create the specs for the command line options to be handled by
+// c4conf. These options will be used to transform the config tree:
+constexpr const ConfigActionSpec conf_specs[] = {
+    spec_for<ConfigAction::set_node >("-cn" , "--conf-node"  ), // override a node (scalars, seqs or vals)
+    spec_for<ConfigAction::load_file>("-cf" , "--conf-file"  ), // override from a file, optionally into a nested node
+    spec_for<ConfigAction::load_dir >("-cd" , "--conf-dir"   ), // override from all files in a directory, optionally into a nested node
+    spec_for(&setfoo ,                "-sf" , "--set-foo"     , {}           , "call setfoo()"),
+    spec_for(&setbar ,                "-sb" , "--set-bar"     , {}           , "call setbar()"),
+    spec_for(&setfoo3,                "-sf3", "--set-foo3-val", "<foo3val>"  , "call setfoo3() with a required arg)"),
+    spec_for(&setbar2,                "-sb2", "--set-bar2-val", "[<bar2val>]", "call setbar2() with an optional arg)"),
+};
+
+// Load settings, and override them with any command-line arguments.
+// The arguments registered above are filtered out of the input, and
+// any other arguments will remain.
+c4::yml::Tree makeconf(int *argc, char ***argv)
+{
+    // This is our config tree; fill it with the defaults.
+    c4::yml::Tree tree = c4::yml::parse("(defaults)", default_settings);
+    // Parse the input args, filtering out the config options
+    // registered above, and gathering them into the returned
+    // container. Any options not listed in conf_specs are ignored and
+    // will remain in (argc, argv). Note that this overload creating a
+    // vector of ParsedOpt is chosen for brevity; you can use a
+    // lower-level overload writing into a memory span.
+    auto configs = parse_opts<std::vector<ParsedOpt>>(argc, argv, conf_specs, std::size(conf_specs));
+    // After successfully parsing, you should also do validation, but
+    // we skip that step in this sample.
+    //
+    // Now apply the config options onto the defaults tree.  All
+    // options are handled in the order given by the user.
+    c4::conf::Workspace workspace(&tree);
+    workspace.apply_opts(configs);
+    return tree;
+}
+
+int main(int argc, char *argv[])
+{
+    // This is our resulting config tree:
+    c4::yml::Tree cfg = makeconf(&argc, &argv);
+    // That's it. All your settings are now loaded into cfg.
+    // Any c4conf arguments are filtered out of argc
+    // and argv. If there are further arguments to be parsed by the
+    // application, this is the occasion to do it. In this example, we
+    // only have --help, and raise an error on any other argument. To
+    // be clear, --help could be handled by parse_opts(), but we
+    // choose to deal with it here instead, to show that c4conf does
+    // not take over the options of your program.
+    for(const char *arg = argv + 1; arg < argv + argc; ++arg)
+    {
+        csubstr s{*arg, strlen(*arg)};
+        if(s == "-h" || s == "--help")
+        {
+            show_help(argv[0]);
+            return 0;
+        }
+        else
+        {
+            std::cout << "unknown argument: " << *arg << "\n";
+            return (int)(arg - argv);
+        }
+    }
+    // Now you can deserialize the config tree
+    // into your program's native data structures.
+    // Since this is an example, we stop here and just
+    // dump the tree to the output:
+    std::cout << tree;
+}
+```
+c4conf also provides facilities to print formatted help for the arguments registered to it:
+```c++
+void show_help(const char *exename)
+{
+    auto dump = [](csubstr s){ std::cout << s; };
+    print_help(dump, conf_specs, std::size(conf_specs), "conf options");
+}
+```
+Calling it with `--help` or `-h`:
 ```console
-$ c4conf-quickstart --help
+$ quickstart --help
 ------------
 conf options
 ------------
@@ -65,26 +168,11 @@ conf options
 
 ### Usage examples
 
-Here are some examples with this executable. Given these default settings:
-
-```yaml
-foo:
-  - foo0
-  - foo1
-  - foo2
-  - foo3
-bar:
-  bar0: indeed0
-  bar1: indeed1
-  bar2: indeed2
-baz: definitely
-```
-
-... you can do any of the following:
+Now here are some examples with this executable:
 
 ```console
 # change seq node values:
-$ exe -cn foo[1]=1.234e9 
+$ quickstart -cn foo[1]=1.234e9 
 foo:
   - foo0
   - 1.234e9
@@ -98,7 +186,7 @@ baz: definitely
 
 
 # change map node values:
-$ exe -cn bar.bar2=newvalue 
+$ quickstart -cn bar.bar2=newvalue 
 foo:
   - foo0
   - foo1
@@ -112,7 +200,7 @@ baz: definitely
 
 
 # change values repeatedly. Later values prevail:
-$ exe -cn foo[1]=1.234e9 -cn foo[1]=2.468e9 
+$ quickstart -cn foo[1]=1.234e9 -cn foo[1]=2.468e9 
 foo:
   - foo0
   - 2.468e9
@@ -126,7 +214,7 @@ baz: definitely
 
 
 # append elements to a seq:
-$ exe -cn foo=[these,will,be,appended] 
+$ quickstart -cn foo=[these,will,be,appended] 
 foo:
   - foo0
   - foo1
@@ -144,7 +232,7 @@ baz: definitely
 
 
 # append elements to a map:
-$ exe -cn bar='{these: will, be: appended}' 
+$ quickstart -cn bar='{these: will, be: appended}' 
 foo:
   - foo0
   - foo1
@@ -160,7 +248,7 @@ baz: definitely
 
 
 # remove all elements in a seq, replace with different elements:
-$ exe -cn 'foo=~' -cn foo=[all,new] 
+$ quickstart -cn 'foo=~' -cn foo=[all,new] 
 foo:
   - all
   - new
@@ -172,7 +260,7 @@ baz: definitely
 
 
 # remove all elements in a map, replace with different elements:
-$ exe -cn 'bar=~' -cn bar='{all: new}' 
+$ quickstart -cn 'bar=~' -cn bar='{all: new}' 
 foo:
   - foo0
   - foo1
@@ -184,7 +272,7 @@ baz: definitely
 
 
 # replace a seq with a different type, eg val:
-$ exe -cn foo=newfoo 
+$ quickstart -cn foo=newfoo 
 foo: newfoo
 bar:
   bar0: indeed0
@@ -194,7 +282,7 @@ baz: definitely
 
 
 # replace a map with a different type, eg val:
-$ exe -cn bar=newbar 
+$ quickstart -cn bar=newbar 
 foo:
   - foo0
   - foo1
@@ -205,7 +293,7 @@ baz: definitely
 
 
 # add new nodes, eg seq:
-$ exe -cn coffee=[morning,lunch,afternoon] 
+$ quickstart -cn coffee=[morning,lunch,afternoon] 
 foo:
   - foo0
   - foo1
@@ -223,7 +311,7 @@ coffee:
 
 
 # add new nodes, eg map:
-$ exe -cn wine='{green: summer, red: winter, champagne: year-round}' 
+$ quickstart -cn wine='{green: summer, red: winter, champagne: year-round}' 
 foo:
   - foo0
   - foo1
@@ -241,7 +329,7 @@ wine:
 
 
 # add new nested nodes to a seq:
-$ exe -cn foo[3]=[a,b,c] 
+$ quickstart -cn foo[3]=[a,b,c] 
 foo:
   - foo0
   - foo1
@@ -257,7 +345,7 @@ baz: definitely
 
 
 # add new nested nodes to a map:
-$ exe -cn bar.possibly=[d,e,f] 
+$ quickstart -cn bar.possibly=[d,e,f] 
 foo:
   - foo0
   - foo1
@@ -277,7 +365,7 @@ baz: definitely
 # In seqs, target node indices do not need to be contiguous.
 # This will add a new seq nested in foo, and
 # foo[4] will also be created with a null:
-$ exe -cn foo[5]=[d,e,f] 
+$ quickstart -cn foo[5]=[d,e,f] 
 foo:
   - foo0
   - foo1
@@ -299,12 +387,12 @@ baz: definitely
 # defaults to the tree's root node. So take care if
 # omitting the target node; that will replace the whole
 # root node with the given value:
-$ exe -cn eraseall 
+$ quickstart -cn eraseall 
 eraseall
 
 
 # call setfoo():
-$ exe -sf 
+$ quickstart -sf 
 foo:
   - foo0
   - foo1
@@ -320,7 +408,7 @@ baz: definitely
 
 
 # call setfoo3(). The following arg is mandatory:
-$ exe -sf3 123 
+$ quickstart -sf3 123 
 foo:
   - foo0
   - foo1
@@ -333,7 +421,7 @@ bar:
 baz: definitely
 
 # this is equivalent to the previous example:
-$ exe -cn foo[3]=123 
+$ quickstart -cn foo[3]=123 
 foo:
   - foo0
   - foo1
@@ -347,7 +435,7 @@ baz: definitely
 
 
 # call setbar2():
-$ exe -sb2 'the value' 
+$ quickstart -sb2 'the value' 
 foo:
   - foo0
   - foo1
@@ -360,7 +448,7 @@ bar:
 baz: definitely
 
 # this is equivalent to the previous example:
-$ exe -cn 'bar.bar2=the value' 
+$ quickstart -cn 'bar.bar2=the value' 
 foo:
   - foo0
   - foo1
@@ -374,7 +462,7 @@ baz: definitely
 
 
 # call setbar2(), with omitted arg:
-$ exe -sb2 
+$ quickstart -sb2 
 foo:
   - foo0
   - foo1
@@ -387,7 +475,7 @@ bar:
 baz: definitely
 
 # this is equivalent to the previous example:
-$ exe -cn 'bar.bar2=~' 
+$ quickstart -cn 'bar.bar2=~' 
 foo:
   - foo0
   - foo1
