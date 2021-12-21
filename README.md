@@ -125,8 +125,13 @@ void show_help(const char *exename)
     print_help(dump, conf_specs, std::size(conf_specs), "conf options");
 }
 ```
-Calling it with `--help` or `-h`:
+
+### Usage examples
+
+Now here are some examples with this executable:
+
 ```console
+# getting help
 $ quickstart --help
 ------------
 conf options
@@ -164,13 +169,22 @@ conf options
                       call setfoo3() with a required arg 
   -sb2 [<bar2val>], --set-bar2-val [<bar2val>]
                       call setbar2() with an optional arg
-```
 
-### Usage examples
 
-Now here are some examples with this executable:
+# run with defaults, do not change anything
+$ quickstart
+foo:
+  - foo0
+  - foo1
+  - foo2
+  - foo3
+bar:
+  bar0: indeed0
+  bar1: indeed1
+  bar2: indeed2
+baz: definitely
 
-```console
+
 # change seq node values:
 $ quickstart -cn foo[1]=1.234e9 
 foo:

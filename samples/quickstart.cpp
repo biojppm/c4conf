@@ -193,6 +193,9 @@ Given these default settings:
 )" << default_settings << R"(
 ... you can do any of the following:
 
+)"; show_example("# run with defaults, do not change anything",
+                 {}) << R"(
+
 )"; show_example("# change seq node values",
                  {"-cn", "foo[1]=1.234e9"}) << R"(
 
