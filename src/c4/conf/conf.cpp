@@ -70,7 +70,7 @@ csubstr _get_root_key(csubstr path) noexcept
 //-----------------------------------------------------------------------------
 
 Workspace::Workspace(yml::Tree *output, yml::Tree *t)
-    : m_wsbuf(output->allocator())
+    : m_wsbuf(output->callbacks())
     , m_ws(t ? t : &m_wsbuf)
     , m_output(output)
     , m_load_started(false)
@@ -179,7 +179,7 @@ void Workspace::_parse_yml(csubstr filename, substr yml)
     C4_CHECK(!yml.is_sub(m_ws->arena()));
     m_ws->clear(); // does not clear the arena
     m_ws->clear_arena();
-    yml::parse(filename, yml, m_ws);
+    yml::parse_in_place(filename, yml, m_ws);
 }
 
 void Workspace::_parse_yml(csubstr filename, csubstr yml)

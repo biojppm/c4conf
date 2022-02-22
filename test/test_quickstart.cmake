@@ -260,7 +260,7 @@ foo:
   - foo1
   - foo2
   - foo3
-  - ~
+  - 
   - - d
     - e
     - f
@@ -360,7 +360,7 @@ foo:
 bar:
   bar0: indeed0
   bar1: indeed1
-  bar2: ~
+  bar2: 
 baz: definitely"
 -sb2
     )

@@ -385,7 +385,7 @@ foo:
   - foo1
   - foo2
   - foo3
-  - ~
+  - 
   - - d
     - e
     - f
@@ -485,7 +485,7 @@ foo:
 bar:
   bar0: indeed0
   bar1: indeed1
-  bar2: ~
+  bar2: 
 baz: definitely
 
 # this is equivalent to the previous example:
@@ -502,7 +502,7 @@ bar:
 baz: definitely
 ```
 
-Notice above that tilde `~` (which in YAML is understood as the null value) is escaped with quotes when it is part of an argument. This is needed to prevent the shell from replacing `~` with the user's home dir before the executable is called.
+Notice above that tilde `~` (which in YAML is understood as the null value) is escaped with surrounding quotes when it is part of an argument. This is needed to prevent the shell from replacing `~` with the user's home dir before the executable is called.
 
 
 # License

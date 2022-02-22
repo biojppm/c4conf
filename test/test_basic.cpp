@@ -56,7 +56,7 @@ void test_same(MultipleFilesSpec files, MultipleConfsSpec confs, c4::csubstr exp
         ws.add_file(file.name());
     for(c4::csubstr spec : confs)
         ws.add_conf(spec);
-    c4::yml::parse(expected_yml, &tree_expected);
+    c4::yml::parse_in_arena(expected_yml, &tree_expected);
 
     std::string result = emitstr(tree_result);
     std::string expected = emitstr(tree_expected);
@@ -253,7 +253,7 @@ TEST_CASE("files_and_confs.non_nested_vals")
 
 TEST_CASE("files_and_confs.map_and_seq")
 {
-    auto t = c4::yml::parse("[0, 1, 2]");
+    auto t = c4::yml::parse_in_arena("[0, 1, 2]");
     REQUIRE_EQ(t.size(), 4u);
     REQUIRE_EQ(t.num_children(0u), 3u);
     test_same(
@@ -387,7 +387,7 @@ TEST_CASE("nested_mixed_lookup.override_val_with_map")
          "map.seq[1].map.seq[1]={foo.bar}",
          "map.seq[1].and={40: 60}",
         },
-        "{map: {seq: [{foo: bar}, {map: {seq: [10, {foo.bar: ~}]}, and: {40: 60}}]}}"
+        "{map: {seq: [{foo: bar}, {map: {seq: [10, {foo.bar: }]}, and: {40: 60}}]}}"
     );
 }
 
@@ -456,7 +456,7 @@ TEST_CASE("nested_mixed_lookup.create_seq_entries")
          "map.seq[1].map.seq=[00, 10]",
          "map.seq[1].map.seq[4]=[40, 50]",
         },
-        "{map: {seq: [0, {map: {seq: [00, 10, ~, ~, [40, 50]]}, and: val}]}}"
+        "{map: {seq: [0, {map: {seq: [00, 10, , , [40, 50]]}, and: val}]}}"
     );
 }
 

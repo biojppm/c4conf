@@ -143,7 +143,7 @@ TEST_CASE("opts.args_are_not_changed_when_given_insufficient_output_buffer")
 TEST_CASE("opts.empty_is_ok")
 {
     cspan<ParsedOpt> expected_args = {};
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     test_opts({"-a", "-b", "b0", "-c", "c0", "c1"},
               {"-a", "-b", "b0", "-c", "c0", "c1"},
               expected_args,
@@ -152,7 +152,7 @@ TEST_CASE("opts.empty_is_ok")
 
 TEST_CASE("opts.set_node")
 {
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::set_node, csubstr("key1.key1val0[1]"), csubstr("here it is"), {}},
         {ConfigAction::set_node, csubstr("key1.key1val1"   ), csubstr("now this is a scalar"), {}},
@@ -177,7 +177,7 @@ TEST_CASE("opts.set_node")
 
 TEST_CASE("opts.add_node_to_seq")
 {
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::set_node, csubstr("key1.key1val0[5]"), csubstr("here you go with a new one"), {}},
     };
@@ -198,7 +198,7 @@ TEST_CASE("opts.add_node_to_seq")
 
 TEST_CASE("opts.add_node_to_map")
 {
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::set_node, csubstr("key1.key1val2"), csubstr("here you go with a new one"), {}},
     };
@@ -222,7 +222,7 @@ TEST_CASE("opts.set_node_with_nonscalars")
     csubstr k1k1v01_ = "{nothing: really, actually: something}";
     csubstr k1k1v1 = "[more, items, like, this, are, appended]";
     csubstr k1k1v01 = "{Jacquesson: [741, 742], Gosset: Grande Reserve}";
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::set_node, csubstr("key1.key1val0[1]"), k1k1v01_, {}},
         {ConfigAction::set_node, csubstr("key1.key1val1"), k1k1v1, {}},
@@ -311,7 +311,7 @@ struct case1files
 TEST_CASE("opts.load_file")
 {
     case1files setup;
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::load_file, {}, csubstr("somedir/file0"), {}},
         {ConfigAction::load_file, {}, csubstr("somedir/file1"), {}},
@@ -326,7 +326,7 @@ TEST_CASE("opts.load_file")
 TEST_CASE("opts.load_file_to_node")
 {
     case1files setup;
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::load_file, csubstr("key0"), csubstr("somedir_to_node/file0"), {}},
         {ConfigAction::load_file, csubstr("key1"), csubstr("somedir_to_node/file1"), {}},
@@ -341,7 +341,7 @@ TEST_CASE("opts.load_file_to_node")
 TEST_CASE("opts.load_dir")
 {
     case1files setup;
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::load_dir, {}, csubstr("somedir"), {}},
     };
@@ -355,7 +355,7 @@ TEST_CASE("opts.load_dir")
 TEST_CASE("opts.load_dir_to_node")
 {
     case1files setup;
-    yml::Tree expected_tree = yml::parse(reftree);
+    yml::Tree expected_tree = yml::parse_in_arena(reftree);
     ParsedOpt expected_args[] = {
         {ConfigAction::load_dir, csubstr("key0"), csubstr("somedir_to_key0"), {}},
         {ConfigAction::load_dir, csubstr("key1"), csubstr("somedir_to_key1"), {}},
@@ -455,7 +455,7 @@ void test_opts(std::vector<std::string> const& input_args,
     //
     if(expected_args.size())
     {
-        yml::Tree output = yml::parse(reftree);
+        yml::Tree output = yml::parse_in_arena(reftree);
         Workspace ws(&output);
         ws.apply_opts(buf_out.data(), buf_out.size());
         CHECK_EQ(yml::emitrs<std::string>(output), yml::emitrs<std::string>(expected_tree));

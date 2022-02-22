@@ -49,7 +49,7 @@ constexpr const ConfigActionSpec conf_specs[] = {
 c4::yml::Tree makeconf(int *argc, char ***argv)
 {
     // This is our config tree; fill it with the defaults.
-    c4::yml::Tree tree = c4::yml::parse("(defaults)", default_settings);
+    c4::yml::Tree tree = c4::yml::parse_in_arena("(defaults)", default_settings);
     // Parse the input args, filtering out the config options
     // registered above, and gathering them into the returned
     // container. Any options not listed in conf_specs are ignored and

@@ -82,7 +82,7 @@ private:
         if(!mb->valid())
         {
             _release(mb);
-            mb->buf = (T*) m_output->m_alloc.allocate(sizeof(T) * mb->required_size, mb->buf);
+            mb->buf = (T*) m_output->m_callbacks.m_allocate(sizeof(T) * mb->required_size, mb->buf, m_output->m_callbacks.m_user_data);
             mb->size = mb->required_size;
         }
     }
@@ -90,7 +90,7 @@ private:
     void _release(c4::fs::maybe_buf<T> *mb)
     {
         if(mb->buf)
-            m_output->m_alloc.free(mb->buf, sizeof(T) * mb->size);
+            m_output->m_callbacks.m_free(mb->buf, sizeof(T) * mb->size, m_output->m_callbacks.m_user_data);
         mb->buf = nullptr;
         mb->size = 0;
     }
