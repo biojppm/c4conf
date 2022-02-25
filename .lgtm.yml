@@ -1,0 +1,3 @@
+queries:
+- exclude: cpp/unsigned-comparison-zero
+- exclude: cpp/fixme-comment
