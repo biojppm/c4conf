@@ -458,7 +458,7 @@ void test_opts(std::vector<std::string> const& input_args,
         yml::Tree output = yml::parse_in_arena(reftree);
         Workspace ws(&output);
         ws.apply_opts(buf_out.data(), buf_out.size());
-        CHECK_EQ(yml::emitrs<std::string>(output), yml::emitrs<std::string>(expected_tree));
+        CHECK_EQ(yml::emitrs_yaml<std::string>(output), yml::emitrs_yaml<std::string>(expected_tree));
     }
 }
 

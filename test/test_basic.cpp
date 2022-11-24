@@ -33,7 +33,7 @@ struct MultipleFiles
 
 std::string emitstr(c4::yml::Tree const& tree)
 {
-    return c4::yml::emitrs<std::string>(tree);
+    return c4::yml::emitrs_yaml<std::string>(tree);
 }
 
 // apply multiple files, then apply multiple confs
