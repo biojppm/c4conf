@@ -492,6 +492,7 @@ size_t parse_opts(int *argc, char ***argv,
             {
                 C4_ASSERT(*argc >= iarg + 1);
                 _dbg("arg[" << iarg << "]=" << getarg(iarg) << ": no arg expected");
+                return false;
             }
             else
             {
