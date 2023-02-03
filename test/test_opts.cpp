@@ -14,7 +14,9 @@ namespace conf {
 void test_opts(std::vector<std::string> const& input_args,
                std::vector<std::string> const& filtered_args,
                cspan<ParsedOpt> expected_args,
-               yml::Tree const& expected_tree);
+               yml::Tree const& expected_tree,
+               cspan<ConfigActionSpec> specs={},
+               yml::Tree const* reftree_=nullptr);
 
 void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args);
 std::vector<char*> to_args(std::vector<std::string> const& stringvec)
@@ -372,6 +374,82 @@ TEST_CASE("opts.load_dir_to_node")
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
+
+TEST_CASE("opts.github4")
+{
+    const yml::Tree tree = yml::parse_in_arena("test: {test1: false, test2: false}");
+
+    auto action1 = [](yml::Tree &t, csubstr) { t["test"]["test1"] = "true"; };
+    auto action2 = [](yml::Tree &t, csubstr) { t["test"]["test2"] = "true"; };
+    auto action3 = [](yml::Tree &t, csubstr arg) { t["test"]["test3"] = arg; };
+
+    const ConfigActionSpec specs[] = {
+        {ConfigAction::callback, action1, csubstr("-t1"), csubstr("--action1"), csubstr{}                 , csubstr("action 1")},
+        {ConfigAction::callback, action2, csubstr("-t2"), csubstr("--action2"), csubstr{}                 , csubstr("action 2")},
+        {ConfigAction::callback, action3, csubstr("-t3"), csubstr("--action3"), csubstr("[<optionalval>]"), csubstr{}},
+    };
+
+    SUBCASE("no options")
+    {
+        test_opts({}, {}, {}, tree, specs, &tree);
+    }
+    SUBCASE("t1")
+    {
+        ParsedOpt expected_args[] = {ParsedOpt{ConfigAction::callback, {}, {}, action1}};
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: true, test2: false}");
+        test_opts({"-t1"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+    SUBCASE("t2")
+    {
+        ParsedOpt expected_args[] = {ParsedOpt{ConfigAction::callback, {}, {}, action2}};
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: false, test2: true}");
+        test_opts({"-t2"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+    SUBCASE("t1, t2")
+    {
+        ParsedOpt expected_args[] = {
+            ParsedOpt{ConfigAction::callback, {}, {}, action1},
+            ParsedOpt{ConfigAction::callback, {}, {}, action2}
+        };
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: true, test2: true}");
+        test_opts({"-t1", "-t2"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+    SUBCASE("t2, t1")
+    {
+        ParsedOpt expected_args[] = {
+            ParsedOpt{ConfigAction::callback, {}, {}, action2},
+            ParsedOpt{ConfigAction::callback, {}, {}, action1}
+        };
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: true, test2: true}");
+        test_opts({"-t2", "-t1"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+    SUBCASE("t1, t2, t3 foo")
+    {
+        ParsedOpt expected_args[] = {
+            ParsedOpt{ConfigAction::callback, {}, {}, action1},
+            ParsedOpt{ConfigAction::callback, {}, {}, action2},
+            ParsedOpt{ConfigAction::callback, {}, csubstr{"foo"}, action3},
+        };
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: true, test2: true, test3: foo}");
+        test_opts({"-t1", "-t2", "-t3", "foo"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+    SUBCASE("t1, t2, t3 foo")
+    {
+        ParsedOpt expected_args[] = {
+            ParsedOpt{ConfigAction::callback, {}, {}, action1},
+            ParsedOpt{ConfigAction::callback, {}, csubstr{"foo"}, action3},
+            ParsedOpt{ConfigAction::callback, {}, {}, action2},
+        };
+        const yml::Tree expected_tree = yml::parse_in_arena("test: {test1: true, test2: true, test3: foo}");
+        test_opts({"-t1", "-t3", "foo", "-t2"}, {}, expected_args, expected_tree, specs, &tree);
+    }
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
 void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args)
 {
     args->resize(stringvec.size());
@@ -379,9 +457,10 @@ void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args
         (*args)[i] = (char *)&(stringvec[i][0]);
 }
 
-size_t parse_opts(int *argc, char ***argv, c4::span<ParsedOpt> *opt_args)
+size_t parse_opts(int *argc, char ***argv, c4::span<ParsedOpt> *opt_args, cspan<ConfigActionSpec> specs={})
 {
-    cspan<ConfigActionSpec> specs = specs_buf;
+    if(specs.empty())
+        specs = specs_buf;
     size_t required = parse_opts(argc, argv,
                                  specs.data(), specs.size(),
                                  opt_args ? opt_args->data() : nullptr, opt_args ? opt_args->size() : 0);
@@ -395,7 +474,9 @@ size_t parse_opts(int *argc, char ***argv, c4::span<ParsedOpt> *opt_args)
 void test_opts(std::vector<std::string> const& input_args,
                std::vector<std::string> const& filtered_args,
                cspan<ParsedOpt> expected_args,
-               yml::Tree const& expected_tree)
+               yml::Tree const& expected_tree,
+               cspan<ConfigActionSpec> specs,
+               yml::Tree const* reftree_)
 {
     std::vector<char*> input_args_ptr, filtered_args_ptr, input_args_ptr_orig;
     int argc;
@@ -414,7 +495,7 @@ void test_opts(std::vector<std::string> const& input_args,
     };
     // must accept nullptr
     reset_args();
-    size_t ret = parse_opts(&argc, &argv, nullptr);
+    size_t ret = parse_opts(&argc, &argv, nullptr, specs);
     REQUIRE_NE(ret, (size_t)argerror);
     CHECK_EQ(ret, expected_args.size());
     check_input_args();
@@ -423,7 +504,7 @@ void test_opts(std::vector<std::string> const& input_args,
     std::vector<ParsedOpt> buf;
     buf.resize(expected_args.size() / 2);
     span<ParsedOpt> buf_out = {buf.data(), buf.size()};
-    ret = parse_opts(&argc, &argv, &buf_out);
+    ret = parse_opts(&argc, &argv, &buf_out, specs);
     REQUIRE_NE(ret, (size_t)argerror);
     CHECK_EQ(ret, expected_args.size());
     CHECK_EQ(argc, (int)input_args.size());
@@ -434,11 +515,11 @@ void test_opts(std::vector<std::string> const& input_args,
     reset_args();
     buf.resize(expected_args.size());
     buf_out = {buf.data(), buf.size()};
-    ret = parse_opts(&argc, &argv, &buf_out);
+    ret = parse_opts(&argc, &argv, &buf_out, specs);
     REQUIRE_NE(ret, (size_t)argerror);
     CHECK_EQ(ret, expected_args.size());
     CHECK_EQ(argc, (int)filtered_args.size());
-    CHECK_EQ(buf_out.size(), expected_args.size());
+    REQUIRE_EQ(buf_out.size(), expected_args.size());
     CHECK_EQ(buf_out.data(), buf.data());
     for(int iarg = 0; iarg < argc; ++iarg)
     {
@@ -455,7 +536,7 @@ void test_opts(std::vector<std::string> const& input_args,
     //
     if(expected_args.size())
     {
-        yml::Tree output = yml::parse_in_arena(reftree);
+        yml::Tree output = reftree_ ? *reftree_ : yml::parse_in_arena(reftree);
         Workspace ws(&output);
         ws.apply_opts(buf_out.data(), buf_out.size());
         CHECK_EQ(yml::emitrs_yaml<std::string>(output), yml::emitrs_yaml<std::string>(expected_tree));
