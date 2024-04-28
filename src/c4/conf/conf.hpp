@@ -6,6 +6,8 @@
 #include <c4/fs/fs.hpp>
 #include <type_traits>
 
+
+
 namespace c4 {
 namespace conf {
 
@@ -13,6 +15,8 @@ using substr = c4::substr;
 using csubstr = c4::csubstr;
 using Tree = c4::yml::Tree;
 
+C4_SUPPRESS_WARNING_GCC_CLANG_PUSH
+C4_SUPPRESS_WARNING_GCC_CLANG("-Wold-style-cast")
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -304,7 +308,7 @@ bool parse_opts(int *argc, char ***argv,
 
 
 /** Parse command line options, and return a newly created container
- * of with the result.  Calls C4_ERROR() if the arguments fail to
+ * with the result.  Calls C4_ERROR() if the arguments fail to
  * parse. */
 template<class ParsedOptContainer>
 ParsedOptContainer parse_opts(int *argc, char ***argv, ConfigActionSpec const* specs, size_t num_specs)
@@ -409,6 +413,8 @@ C4_NO_INLINE void print_help(DumpFn &&dump,
 }
 
 /** @} */
+
+C4_SUPPRESS_WARNING_GCC_CLANG_POP
 
 } // namespace conf
 } // namespace c4

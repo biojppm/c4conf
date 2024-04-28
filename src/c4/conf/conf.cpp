@@ -4,6 +4,9 @@
 #include <c4/fs/fs.hpp>
 #include <c4/format.hpp>
 
+C4_SUPPRESS_WARNING_GCC_CLANG_PUSH
+C4_SUPPRESS_WARNING_GCC_CLANG("-Wold-style-cast")
+
 #if 1 || defined(NDEBUG)
 #define _pr(...)
 #define _dbg(...)
@@ -602,3 +605,5 @@ size_t parse_opts(int *argc, char ***argv,
 
 } // namespace conf
 } // namespace c4
+
+C4_SUPPRESS_WARNING_GCC_CLANG_POP

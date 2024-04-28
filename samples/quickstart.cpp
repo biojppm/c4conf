@@ -3,7 +3,9 @@
 #include <string>
 #include <iostream>
 
-C4_SUPPRESS_WARNING_GCC_WITH_PUSH("-Wuseless-cast")
+C4_SUPPRESS_WARNING_GCC_CLANG_PUSH
+C4_SUPPRESS_WARNING_GCC("-Wuseless-cast")
+C4_SUPPRESS_WARNING_GCC_CLANG("-Wold-style-cast")
 C4_SUPPRESS_WARNING_MSVC_WITH_PUSH(4702) // unreachable code
 
 using namespace c4::conf;
@@ -31,7 +33,7 @@ void setbar2(Tree &tree, csubstr bar2val);
 
 // create the specs for the command line options to be handled by
 // c4conf. These options will transform the config tree:
-constexpr const ConfigActionSpec conf_specs[] = {
+const ConfigActionSpec conf_specs[] = {
     // using an explicit csubstr() is required by GCC5, but not with
     // later versions, which will pick the proper csubstr constructor.
     spec_for<ConfigAction::set_node> (csubstr("-cn" ), csubstr("--conf-node"   )),
@@ -273,5 +275,5 @@ Given these default settings:
 )";
 }
 
-C4_SUPPRESS_WARNING_GCC_POP
+C4_SUPPRESS_WARNING_GCC_CLANG_POP
 C4_SUPPRESS_WARNING_MSVC_POP

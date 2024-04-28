@@ -8,6 +8,9 @@
 #include <vector>
 #include <string>
 
+C4_SUPPRESS_WARNING_GCC_CLANG_PUSH
+C4_SUPPRESS_WARNING_GCC_CLANG("-Wold-style-cast")
+
 namespace c4 {
 namespace conf {
 
@@ -452,9 +455,11 @@ TEST_CASE("opts.github4")
 
 void to_args(std::vector<std::string> const& stringvec, std::vector<char*> *args)
 {
+    C4_SUPPRESS_WARNING_GCC_CLANG_WITH_PUSH("-Wcast-qual")
     args->resize(stringvec.size());
     for(size_t i = 0; i < stringvec.size(); ++i)
         (*args)[i] = (char *)&(stringvec[i][0]);
+    C4_SUPPRESS_WARNING_GCC_CLANG_POP
 }
 
 size_t parse_opts(int *argc, char ***argv, c4::span<ParsedOpt> *opt_args, cspan<ConfigActionSpec> specs={})
@@ -545,3 +550,5 @@ void test_opts(std::vector<std::string> const& input_args,
 
 } // namespace conf
 } // namespace c4
+
+C4_SUPPRESS_WARNING_GCC_CLANG_POP
