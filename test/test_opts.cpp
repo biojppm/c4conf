@@ -165,7 +165,7 @@ TEST_CASE("opts.set_node")
     };
     expected_tree["key1"]["key1val0"][1].set_val("here it is");
     expected_tree["key1"]["key1val1"].clear_children();
-    expected_tree["key1"]["key1val1"].set_type(yml::KEYVAL);
+    expected_tree["key1"]["key1val1"].change_type(yml::VAL);
     expected_tree["key1"]["key1val1"].set_val("now this is a scalar");
     expected_tree["key1"]["key1val0"][1].set_val("here it is overrided");
     // quotes in the value
@@ -207,7 +207,7 @@ TEST_CASE("opts.add_node_to_map")
     ParsedOpt expected_args[] = {
         {ConfigAction::set_node, csubstr("key1.key1val2"), csubstr("here you go with a new one"), {}},
     };
-    expected_tree["key1"]["key1val2"] = "here you go with a new one";
+    expected_tree["key1"]["key1val2"].set_val("here you go with a new one");
     // quotes in the value
     test_opts({"-a", "-n", "key1.key1val2='here you go with a new one'", "-b", "b0"},
               {"-a",                                                     "-b", "b0"},
@@ -234,18 +234,18 @@ TEST_CASE("opts.set_node_with_nonscalars")
         {ConfigAction::set_node, csubstr("key1.key1val0[1]"), k1k1v01, {}},
     };
     expected_tree["key1"]["key1val0"][1].change_type(yml::MAP);
-    expected_tree["key1"]["key1val0"][1]["nothing"] = "really";
-    expected_tree["key1"]["key1val0"][1]["actually"] = "something";
-    expected_tree["key1"]["key1val1"][3] = "more";
-    expected_tree["key1"]["key1val1"][4] = "items";
-    expected_tree["key1"]["key1val1"][5] = "like";
-    expected_tree["key1"]["key1val1"][6] = "this";
-    expected_tree["key1"]["key1val1"][7] = "are";
-    expected_tree["key1"]["key1val1"][8] = "appended";
-    expected_tree["key1"]["key1val0"][1]["Jacquesson"] |= yml::SEQ;
-    expected_tree["key1"]["key1val0"][1]["Jacquesson"][0] = "741";
-    expected_tree["key1"]["key1val0"][1]["Jacquesson"][1] = "742";
-    expected_tree["key1"]["key1val0"][1]["Gosset"] = "Grande Reserve";
+    expected_tree["key1"]["key1val0"][1]["nothing"].set_val("really");
+    expected_tree["key1"]["key1val0"][1]["actually"].set_val("something");
+    expected_tree["key1"]["key1val1"][3].set_val("more");
+    expected_tree["key1"]["key1val1"][4].set_val("items");
+    expected_tree["key1"]["key1val1"][5].set_val("like");
+    expected_tree["key1"]["key1val1"][6].set_val("this");
+    expected_tree["key1"]["key1val1"][7].set_val("are");
+    expected_tree["key1"]["key1val1"][8].set_val("appended");
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"].set_seq();
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"][0].set_val("741");
+    expected_tree["key1"]["key1val0"][1]["Jacquesson"][1].set_val("742");
+    expected_tree["key1"]["key1val0"][1]["Gosset"].set_val("Grande Reserve");
     // quotes in the value
     test_opts({"-a", "-n", "key1.key1val0[1]='{nothing: really, actually: something}'", "-b", "b0", "--node", "key1.key1val1=\"[more, items, like, this, are, appended]\"", "-c", "c0", "c1", "-n", "key1.key1val0[1]='{Jacquesson: [741, 742], Gosset: Grande Reserve}'"},
               {"-a",                                                                    "-b", "b0",                                                                         "-c", "c0", "c1"},
@@ -296,19 +296,19 @@ struct case1files
     void transform1(yml::Tree *tree)
     {
         (*tree)["key0"]["key0val0"].clear_children();
-        (*tree)["key0"]["key0val0"].set_type(yml::KEYVAL);
+        (*tree)["key0"]["key0val0"].change_type(yml::VAL);
         (*tree)["key0"]["key0val0"].set_val("now replaced as a scalar");
         (*tree)["key1"]["key1val0"].clear_children();
-        (*tree)["key1"]["key1val0"].set_type(yml::KEYVAL);
+        (*tree)["key1"]["key1val0"].change_type(yml::VAL);
         (*tree)["key1"]["key1val0"].set_val("this one too");
     }
     void transform2(yml::Tree *tree)
     {
         (*tree)["key0"]["key0val0"].clear_children();
-        (*tree)["key0"]["key0val0"].set_type(yml::KEYVAL);
+        (*tree)["key0"]["key0val0"].change_type(yml::VAL);
         (*tree)["key0"]["key0val0"].set_val("NOW replaced as a scalar v2");
         (*tree)["key1"]["key1val0"].clear_children();
-        (*tree)["key1"]["key1val0"].set_type(yml::KEYVAL);
+        (*tree)["key1"]["key1val0"].change_type(yml::VAL);
         (*tree)["key1"]["key1val0"].set_val("THIS one too v2");
     }
 };
@@ -382,9 +382,9 @@ TEST_CASE("opts.github4")
 {
     const yml::Tree tree = yml::parse_in_arena("test: {test1: false, test2: false}");
 
-    auto action1 = [](yml::Tree &t, csubstr) { t["test"]["test1"] = "true"; };
-    auto action2 = [](yml::Tree &t, csubstr) { t["test"]["test2"] = "true"; };
-    auto action3 = [](yml::Tree &t, csubstr arg) { t["test"]["test3"] = arg; };
+    auto action1 = [](yml::Tree &t, csubstr) { t["test"]["test1"].set_val("true"); };
+    auto action2 = [](yml::Tree &t, csubstr) { t["test"]["test2"].set_val("true"); };
+    auto action3 = [](yml::Tree &t, csubstr arg) { t["test"]["test3"].set_val(arg); };
 
     const ConfigActionSpec specs[] = {
         {ConfigAction::callback, action1, csubstr("-t1"), csubstr("--action1"), csubstr{}                 , csubstr("action 1")},

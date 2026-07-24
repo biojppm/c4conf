@@ -7,13 +7,17 @@
 C4_SUPPRESS_WARNING_GCC_CLANG_PUSH
 C4_SUPPRESS_WARNING_GCC_CLANG("-Wold-style-cast")
 
-#if 1 || defined(NDEBUG)
+//#define C4CONF_DBG
+
+#ifndef C4CONF_DBG
 #define _pr(...)
+#define _prn(tree, nodeid)
 #define _dbg(...)
 #else
 #include <iostream>
 #include <c4/yml/detail/print.hpp>
 #define _pr(...) c4::yml::print_tree(__VA_ARGS__)
+#define _prn(tree, nodeid) c4::yml::print_node(tree, nodeid, 0, 0, true)
 #define _dbg(...) std::cout << __FILE__ << ':' << __LINE__ << ": " << __VA_ARGS__ << std::endl
 #endif
 
@@ -21,6 +25,7 @@ namespace c4 {
 namespace conf {
 
 namespace {
+using id_type = yml::id_type;
 struct path_eq_yml
 {
     /** path.to.foo.bar[0]=.....yml.... */
@@ -64,6 +69,21 @@ csubstr _get_root_key(csubstr path) noexcept
 {
     size_t dot_pos = path.first_of('.');
     return dot_pos == csubstr::npos ? path : path.left_of(dot_pos);
+}
+
+void set_style_conditionally(yml::Tree *tree, id_type node,
+                             yml::NodeType type_mask,
+                             yml::NodeType rem_style_flags,
+                             yml::NodeType add_style_flags)
+{
+    yml::NodeData *C4_RESTRICT d = tree->_p(node);
+    if(d->m_type.m_bits & type_mask.m_bits)
+    {
+        d->m_type.m_bits &= ~rem_style_flags.m_bits;
+        d->m_type.m_bits |= add_style_flags.m_bits;
+    }
+    for(id_type child = d->m_first_child; child != yml::NONE; child = tree->next_sibling(child))
+        set_style_conditionally(tree, child, type_mask, rem_style_flags, add_style_flags);
 }
 } // namespace
 
@@ -225,7 +245,7 @@ void Workspace::_askeyx(yml::Tree *t, csubstr key)
     if(saved.m_type.is_doc())
         if(saved.m_type.is_val())
             saved.m_type = saved.m_type & ~yml::DOC;
-    size_t newid = t->append_child(root);
+    id_type newid = t->append_child(root);
     yml::NodeData *C4_RESTRICT new_data = t->_p(newid);
     *new_data = saved;
     new_data->m_type = new_data->m_type | yml::KEY;
@@ -235,7 +255,7 @@ void Workspace::_askeyx(yml::Tree *t, csubstr key)
     old_data->m_last_child = newid;
     if(saved.m_last_child != yml::NONE)
         t->_p(saved.m_last_child)->m_next_sibling = yml::NONE;
-    for(size_t ch = t->first_child(newid); ch != yml::NONE; ch = t->next_sibling(ch))
+    for(id_type ch = t->first_child(newid); ch != yml::NONE; ch = t->next_sibling(ch))
     {
         C4_ASSERT(t->_p(ch)->m_parent == root);
         t->_p(ch)->m_parent = newid;
@@ -256,7 +276,7 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
         _askeyx(m_ws, key);
         _remdoc(m_ws);
         _dbg("src_tree");_pr(*m_ws);
-        size_t keyconf_node = m_ws->first_child(m_ws->root_id());
+        id_type keyconf_node = m_ws->first_child(m_ws->root_id());
         return keyconf_node;
     };
 
@@ -280,7 +300,7 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
             if(dst_path.trimr(" \t").ends_with(']'))
             {
                 _dbg("no key!");
-                size_t conf_node = _setup_yml_as_val(conf_yml);
+                id_type conf_node = _setup_yml_as_val(conf_yml);
                 m_output->lookup_path_or_modify(m_ws, conf_node, dst_path);
             }
             else
@@ -290,7 +310,6 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
                 csubstr rem;
                 if(res.empty()) // do not use the ternary operator to expose potential coverage misses
                 {
-                    //C4_ERROR("crl");
                     rem = _get_root_key(result.unresolved());
                 }
                 else
@@ -298,13 +317,18 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
                     rem = _get_leaf_key(result.unresolved());
                 }
                 _dbg("key='" << dst_path << "' rem='" << rem << "'");
-                size_t keyconf_node = _setup_yml_as_keyval(rem, conf_yml);
+                id_type keyconf_node = _setup_yml_as_keyval(rem, conf_yml);
                 m_output->lookup_path_or_modify(m_ws, keyconf_node, dst_path);
             }
         }
         else
         {
+            #ifdef C4CONF_DBG
+            char typebuf[100];
+            auto tystr = [&typebuf](yml::NodeType ty) { return ty.type_str_sub(typebuf); };
+            #endif
             _dbg("merging...");
+            id_type conf_node;
             // we only have the value of the conf; we need to make it look
             // like the destination node, so if it needs a key, we need to
             // add the appropriate key (eg, foo.bar.baz implies key must
@@ -313,23 +337,29 @@ void Workspace::_add_conf(csubstr filename, csubstr dst_path, basic_substring<Ch
             {
                 // no key is needed, just do it.
                 _dbg("no key!");
-                size_t conf_node = _setup_yml_as_val(conf_yml);
-                m_output->merge_with(m_ws, conf_node, result.target);
+                conf_node = _setup_yml_as_val(conf_yml);
             }
             else
             {
-                C4_CHECK(!dst_path.ends_with(']'));
+                C4_ASSERT(!dst_path.ends_with(']'));
                 // get the appropriate key
                 csubstr rem = _get_leaf_key(dst_path);
                 _dbg("key='" << dst_path << "' rem='" << rem << "'");
                 // ensure we have that key with the conf
-                size_t keyconf_node = _setup_yml_as_keyval(rem, conf_yml);
-                // finally we have the conf ready to merge with the
-                // destination node
-                _dbg("conf=" << keyconf_node << "(" << m_ws->type_str(keyconf_node) << ")" << "\n" << *m_ws);
-                _dbg("conf=\n" << *m_ws);
-                m_output->merge_with(m_ws, keyconf_node, result.target);
+                conf_node = _setup_yml_as_keyval(rem, conf_yml);
             }
+            _dbg("conf=" << conf_node << "(" << tystr(m_ws->type(conf_node)) << ")"); _prn(*m_ws, conf_node);
+            // if changing a val to container, keep the style of the
+            // destination parent container
+            if(m_ws->is_container(conf_node) && m_output->has_parent(result.target))
+            {
+                yml::NodeType container_style = m_output->type(m_output->parent(result.target)) & yml::CONTAINER_STYLE;
+                set_style_conditionally(m_ws, conf_node, yml::CONTAINER_STYLE & ~container_style, yml::CONTAINER_STYLE, container_style);
+                _dbg("conf[styled]=" << conf_node << "(" << tystr(m_ws->type(conf_node)) << ")"); _prn(*m_ws, conf_node);
+            }
+            _dbg("target[before]=" << result.target << "(" << tystr(m_output->type(result.target)) << ")"); _prn(*m_output, result.target);
+            m_output->merge_with(m_ws, conf_node, result.target);
+            _dbg("target[after]=" << result.target << "(" << tystr(m_output->type(result.target)) << ")"); _prn(*m_output, result.target);
         }
     }
     _dbg("outputtree=\n" << *m_output);_pr(*m_output);
