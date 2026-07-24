@@ -125,31 +125,31 @@ void ensure_bar(Tree &tree)
 void setfoo(Tree &tree, csubstr)
 {
     ensure_foo(tree);
-    tree["foo"][2] = "foo2, actually footoo";
+    tree["foo"][2].set_val("foo2, actually footoo");
     tree["foo"][3].change_type(c4::yml::SEQ);
-    tree["foo"][3][0] = "foo3elm0";
-    tree["foo"][3][1] = "foo3elm1";
-    tree["foo"][3][2] = "foo3elm2";
+    tree["foo"][3][0].set_val("foo3elm0");
+    tree["foo"][3][1].set_val("foo3elm1");
+    tree["foo"][3][2].set_val("foo3elm2");
 }
 
 void setbar(Tree &tree, csubstr)
 {
     ensure_bar(tree);
-    tree["bar"]["add more"] = "one";
-    tree["bar"]["add more again"] = "two";
-    tree["baz"] = "definitely maybe";
+    tree["bar"]["add more"].set_val("one");
+    tree["bar"]["add more again"].set_val("two");
+    tree["baz"].set_val("definitely maybe");
 }
 
 void setfoo3(Tree &tree, csubstr foo3val)
 {
     ensure_foo(tree);
-    tree["foo"][3] = foo3val;
+    tree["foo"][3].set_val(foo3val);
 }
 
 void setbar2(Tree &tree, csubstr bar2val)
 {
     ensure_bar(tree);
-    tree["bar"]["bar2"] = bar2val;
+    tree["bar"]["bar2"].set_val(bar2val);
 }
 
 

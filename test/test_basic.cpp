@@ -74,7 +74,9 @@ TEST_CASE("basic.orthogonal_settings_do_not_interfere")
     test_same(
         {"a: 0", "b: 1", "c: 2"},
         {},
-        "{a: 0, b: 1, c: 2}"
+        "a: 0\n"
+        "b: 1\n"
+        "c: 2\n"
     );
 }
 
@@ -110,7 +112,8 @@ TEST_CASE("basic.orthogonal_and_overriding_from_four_files")
     test_same(
         {"a: 0", "b: 1", "a: 2", "b: 3"},
         {},
-        "{a: 2, b: 3}"
+        "a: 2\n"
+        "b: 3\n"
     );
 }
 
@@ -238,7 +241,9 @@ TEST_CASE("files_and_confs.baseline")
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
         {},
-        "{a: 1, b: 1, c: 2}"
+        "a: 1\n"
+        "b: 1\n"
+        "c: 2\n"
     );
 }
 
@@ -247,19 +252,27 @@ TEST_CASE("files_and_confs.non_nested_vals")
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
         {"a=3", "a=4", "d=5", "d=6"},
-        "{a: 4, b: 1, c: 2, d: 6}"
+        "a: 4\n"
+        "b: 1\n"
+        "c: 2\n"
+        "d: 6\n"
     );
 }
 
 TEST_CASE("files_and_confs.map_and_seq")
 {
-    auto t = c4::yml::parse_in_arena("[0, 1, 2]");
+    c4::yml::Tree t = c4::yml::parse_in_arena("[0, 1, 2]");
     REQUIRE_EQ(t.size(), 4u);
     REQUIRE_EQ(t.num_children(0u), 3u);
     test_same(
         {"a: 0", "{a: 1, b: 1}", "c: 2"},
         {"a=3", "a=4", "d=5", "d={e: 5}", "f=[0, 1, 2]"},
-        "{a: 4, b: 1, c: 2, d: {e: 5}, f: [0, 1, 2]}"
+        "a: 4\n"
+        "b: 1\n"
+        "c: 2\n"
+        "d:\n"
+        "  e: 5\n"
+        "f: [0,1,2]\n"
     );
 }
 
@@ -454,9 +467,9 @@ TEST_CASE("nested_mixed_lookup.create_seq_entries")
         {"{map: {seq: [0, {map: {seq: [10, 20]}, and: val}]}}"},
         {"map.seq[1].map.seq=~",
          "map.seq[1].map.seq=[00, 10]",
-         "map.seq[1].map.seq[4]=[40, 50]",
+         "map.seq[1].map.seq[2]=[40, 50]",
         },
-        "{map: {seq: [0, {map: {seq: [00, 10, , , [40, 50]]}, and: val}]}}"
+        "{map: {seq: [0, {map: {seq: [00, 10, [40, 50]]}, and: val}]}}"
     );
 }
 

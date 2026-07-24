@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
-include(./ext/c4core/cmake/c4Project.cmake)
 project(c4conf
     DESCRIPTION "YAML configuration loading and merging from multiple files"
     HOMEPAGE_URL "https://github.com/biojppm/c4conf"
     LANGUAGES CXX)
+
+include(./ext/c4core/cmake/c4Project.cmake)
 c4_project(VERSION 0.1.0
     AUTHOR "Joao Paulo Magalhaes <dev@jpmag.me>")
 

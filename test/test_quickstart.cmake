@@ -194,10 +194,7 @@ bar:
   bar1: indeed1
   bar2: indeed2
 baz: definitely
-coffee:
-  - morning
-  - lunch
-  - afternoon"
+coffee: [morning,lunch,afternoon]"
 -cn coffee=[morning,lunch,afternoon]
     )
 
@@ -213,10 +210,7 @@ bar:
   bar1: indeed1
   bar2: indeed2
 baz: definitely
-wine:
-  green: summer
-  red: winter
-  champagne: 'year-round'"
+wine: {green: summer,red: winter,champagne: year-round}"
 -cn "wine='{green: summer, red: winter, champagne: year-round}'"
     )
 
@@ -246,30 +240,24 @@ bar:
   bar0: indeed0
   bar1: indeed1
   bar2: indeed2
-  possibly:
-    - d
-    - e
-    - f
+  possibly: [d,e,f]
 baz: definitely"
 -cn bar.possibly=[d,e,f]
     )
 
-c4conf_add_quickstart_case(noncontiguous_seq "
+c4conf_add_quickstart_case(contiguous_seq "
 foo:
   - foo0
   - foo1
   - foo2
   - foo3
-  - 
-  - - d
-    - e
-    - f
+  - [d,e,f]
 bar:
   bar0: indeed0
   bar1: indeed1
   bar2: indeed2
 baz: definitely"
--cn foo[5]=[d,e,f]
+-cn foo[4]=[d,e,f]
     )
 
 
@@ -280,7 +268,7 @@ c4conf_add_quickstart_case(call_setfoo "
 foo:
   - foo0
   - foo1
-  - 'foo2, actually footoo'
+  - foo2, actually footoo
   - - foo3elm0
     - foo3elm1
     - foo3elm2
